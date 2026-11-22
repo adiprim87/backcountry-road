@@ -429,3 +429,27 @@ describe('reckoning problems at landmarks', () => {
     expect(b.rng).toBe(a.rng);
   });
 });
+
+import { canFish, finishFish } from '../src/game/river';
+
+describe('fishing', () => {
+  it('is free, spends no day, and works once per river', () => {
+    const s = newGame('merchant', NAMES, 1);
+    s.at = 2; s.miles = 55; s.phase = 'river';
+    const day = s.day, shot = s.supplies.shot = 10;
+    expect(canFish(s)).toBe(true);
+    s.phase = 'fish';
+    finishFish(s, 12);
+    expect(s).toMatchObject({ phase: 'river', day, supplies: expect.objectContaining({ food: 12, shot }) });
+    expect(canFish(s)).toBe(false);
+    s.at = 4; // next river
+    expect(canFish(s)).toBe(true);
+  });
+
+  it('a save made mid-fishing resumes at the river', () => {
+    const s = newGame('merchant', NAMES, 1);
+    s.at = 2; s.phase = 'fish';
+    save(s);
+    expect(load()!.phase).toBe('river');
+  });
+});

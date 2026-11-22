@@ -119,6 +119,11 @@ Most events offer a choice with a trade-off, for example "use medicine or press 
 - You can carry back 100 lb of meat, plus 100 lb per pack horse. The hunt ends on its own once you hit that limit.
 - Each shot and hit makes a short sound.
 
+## Fishing
+- At each river, before crossing, you may fish once. It's free: no shot, no gear, and no day spent.
+- A 20-second timing game: when the float dips, tap within about ¾ of a second to land the fish. Tapping too early scares the fish off for a moment.
+- Catches: bream 1 lb, shad 3 lb, catfish 6 lb, and a rare 20 lb sturgeon. A good session brings in about 10–20 lb, a bonus rather than a way to live.
+
 ## Ending
 - **Win**: reach Fort Prince George with at least one member alive.
   - Score = survivors × 100 + total health + supplies value − days taken.

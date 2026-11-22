@@ -1,7 +1,7 @@
 import { alive, DIFFICULTY, newGame, ROLES, score, type Difficulty, type GameState, type Group, type Pace, type Rations, type Role } from '../game/state';
 import { advanceDay, carryLimit, dateText, finishHunt, foodDays, treatSick } from '../game/tick';
 import { currentEvent, GROUP_NAME, mood, OWNED_LABEL, resolveEvent } from '../game/events';
-import { canCross, cross, crossRisk, depth, waitRiver, type Method } from '../game/river';
+import { canCross, canFish, cross, crossRisk, depth, finishFish, waitRiver, type Method } from '../game/river';
 import { clearSave, load, save } from '../game/save';
 import { ROUTE, TOTAL_MILES } from '../game/route';
 import { buy, ITEMS, unitPrice, type ItemKey } from '../game/store';
@@ -140,6 +140,7 @@ function river(g: GameState) {
   ${opt('float', 'Caulk the wagon and float it')}
   ${here.ferry ? opt('ferry', `Take the ferry, £${here.ferry}`) : ''}
   ${btn('wait', 'Wait a day')}
+  ${canFish(g) ? btn('fish', 'Fish the river (free, once here)') : ''}
   ${quiz(g)}
   ${log(g)}`;
 }
@@ -158,6 +159,11 @@ function quiz(g: GameState) {
        <button type="submit">Check</button></form>`
     : z.result === 'right' ? `<p>Right: ${z.answer}. You earn £${QUIZ_REWARD}.</p>` : `<p>Not quite. ${esc(z.why)}</p>`;
   return `<fieldset class="quiz"><legend>Reckoning (optional, £${QUIZ_REWARD} if right)</legend><p>${esc(z.q)}</p>${body}</fieldset>`;
+}
+
+function fish(_: GameState) {
+  return `<h2>Fishing</h2><p>Watch the float. When it dips under, click or tap quickly to set the hook.
+  Tap too early and you scare the fish off for a moment. No shot needed, and it costs no day.</p>`;
 }
 
 function landmark(g: GameState) {
@@ -203,9 +209,9 @@ function render() {
   if (s?.phase === 'end') recordEnd(s);
   playSounds();
   if (!s) root.innerHTML = view === 'title' ? title() : outfit();
-  else root.innerHTML = { store, travel, landmark, end, event, river, hunt }[s.phase](s);
+  else root.innerHTML = { store, travel, landmark, end, event, river, hunt, fish }[s.phase](s);
   if (s?.phase === 'end') clearSave();
-  else if (s && s.phase !== 'hunt') save(s);
+  else if (s && s.phase !== 'hunt' && s.phase !== 'fish') save(s);
   syncCanvas();
   root.querySelector<HTMLElement>('button:not([disabled]), input')?.focus({ preventScroll: true });
 }
@@ -217,7 +223,7 @@ function syncCanvas() {
     scenesLoaded = true;
     // Decide from the state at load time, not when the import was requested.
     if (!s || s.phase === 'store' || s.phase === 'end') m.hideCanvas();
-    else if (s.phase !== 'hunt') m.showMap(s.miles);
+    else if (s.phase !== 'hunt' && s.phase !== 'fish') m.showMap(s.miles);
   });
 }
 
@@ -235,6 +241,14 @@ function act(name: string, arg: string) {
     else if (name === 'choose') resolveEvent(s, Number(arg));
     else if (name === 'cross') cross(s, arg as Method);
     else if (name === 'wait') waitRiver(s);
+    else if (name === 'fish' && canFish(s)) {
+      const g = s;
+      g.phase = 'fish';
+      import('../scenes').then((m) => m.startFish((lb) => {
+        finishFish(g, lb);
+        render();
+      }));
+    }
     else if (name === 'hunt') {
       const g = s;
       g.phase = 'hunt';

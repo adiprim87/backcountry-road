@@ -3,7 +3,7 @@ import type { Quiz } from './quiz';
 export type Role = 'merchant' | 'farmer' | 'ranger';
 export type Pace = 'rest' | 'steady' | 'strenuous' | 'grueling';
 export type Rations = 'filling' | 'meager' | 'bare';
-export type Phase = 'store' | 'travel' | 'event' | 'river' | 'hunt' | 'landmark' | 'end';
+export type Phase = 'store' | 'travel' | 'event' | 'river' | 'hunt' | 'fish' | 'landmark' | 'end';
 export type Weather = 'fair' | 'hot' | 'rain' | 'storm' | 'fog';
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
@@ -69,6 +69,7 @@ export interface GameState {
   seen: string[]; // once-only events already fired
   rep: Record<Group, number>; // -3 (wary) .. 3 (trusted)
   owned: Owned[];
+  fishedAt?: number; // ROUTE index of the river last fished (once per river)
   quiz?: Quiz; // the reckoning problem at the current landmark
   log: string[];
   result?: 'won' | 'lost';

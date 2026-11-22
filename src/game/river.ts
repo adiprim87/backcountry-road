@@ -57,3 +57,13 @@ export function waitRiver(s: GameState) {
   advanceDay(s, false);
   if (!checkEnd(s)) note(s, `You wait a day. The river is now ${depth(s)} ft deep.`);
 }
+
+/** Fishing is free and spends no day, but only once per river. */
+export const canFish = (s: GameState) => s.phase === 'river' && s.fishedAt !== s.at;
+
+export function finishFish(s: GameState, lb: number) {
+  s.fishedAt = s.at;
+  s.supplies.food += lb;
+  s.phase = 'river';
+  note(s, lb ? `You catch ${lb} lb of fish.` : 'Nothing is biting.');
+}

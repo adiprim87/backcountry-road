@@ -18,6 +18,7 @@ export function load(): GameState | null {
     s.owned ??= [];
     s.difficulty ??= 'normal';
     if (s.phase === 'hunt') s.phase = 'travel'; // a hunt in progress can't be resumed
+    if (s.phase === 'fish') s.phase = 'river'; // nor can fishing; the river is still there
     repairPending(s);
     return s;
   } catch {
