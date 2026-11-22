@@ -80,6 +80,22 @@ Events that reward particular play styles:
 
 Most events offer a choice with a trade-off, for example "use medicine or press on" or "repair now (uses a part) or limp along (slower)".
 
+## Trading & reputation
+- Trades with the Catawba, the Cherokee, settlers and traveling traders are rolled fresh each time: what they want, what they offer, and how much, within ±30%.
+- Each trade offers four choices:
+  - Trade fairly: standing +1.
+  - Trade and add a gift (pay 1.5×): standing +2.
+  - Drive a hard bargain (pay half): it may work at standing −2, or they leave at −1.
+  - Decline politely.
+- Standing runs from −3 (wary) to +3 (trusted) and moves prices from about 130% down to about 55%. Each group's greeting tells you where you stand, and the ledger lists your relations.
+- Helping settlers, selling medicine to a sick traveler, and paying the Cherokee guide also raise standing.
+- Once your standing with the Catawba or Cherokee reaches 2 (friendly), a hunter may offer to guide you to the fort. Every river crossing is then half as risky.
+
+## Rare big purchases (randomized price, offered once)
+- Long rifle (£55–85): bigger hit area in hunts, and the creek buck almost never escapes.
+- Horse team (£70–105): +4 miles a day at any travel pace.
+- Land warrant for 200 acres on Long Canes Creek (£90–135): +500 score if you arrive. You'll be poorer for the rest of the trip.
+
 ## Rivers
 - Each crossing has a depth and current, which rise with recent rain.
 - The choices are:

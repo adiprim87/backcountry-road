@@ -42,10 +42,10 @@ function foodForNextLeg(s: GameState, st: Strategy) {
   return Math.ceil(days * perDay * 1.3);
 }
 
-// A human hunter's haul: mostly 30-120 lb, rangers do better.
+// A human hunter's haul: mostly 30-120 lb; rangers and the long rifle do better.
 function simulateHunt(s: GameState, rng: () => number) {
   const shots = Math.min(s.supplies.shot, 12);
-  const meat = Math.round((20 + rng() * 100) * (s.role === 'ranger' ? 1.3 : 1) * (shots / 12));
+  const meat = Math.round((20 + rng() * 100) * (s.role === 'ranger' ? 1.3 : 1) * (s.owned.includes('rifle') ? 1.4 : 1) * (shots / 12));
   finishHunt(s, Math.min(meat, carryLimit(s)), shots);
 }
 
@@ -105,3 +105,17 @@ for (const [name, st] of Object.entries(STRATEGIES)) {
   }
 }
 console.log('\nCauses are deaths per game (5 = whole party), plus "abandoned wagon" losses.');
+
+// Do the big items pay off? Careful bots buy whatever they can afford, so compare runs with and without each.
+import { score } from '../src/game/state';
+console.log('\nBig items (careful strategy, all roles): runs that bought it vs. runs that did not');
+console.log('item     bought   win  avgScore(won) | not bought   win  avgScore(won)');
+const runs = (Object.keys(ROLES) as Role[]).flatMap((role) => Array.from({ length: N }, (_, i) => play(role, STRATEGIES.careful, i + 1)));
+const stats = (xs: GameState[]) => {
+  const won = xs.filter((s) => s.result === 'won');
+  return `${String(xs.length).padStart(6)} ${`${Math.round((won.length / Math.max(1, xs.length)) * 100)}%`.padStart(5)} ${(won.reduce((a, s) => a + score(s), 0) / Math.max(1, won.length)).toFixed(0).padStart(14)}`;
+};
+for (const item of ['rifle', 'horses', 'deed', 'scout'] as const) {
+  console.log(`${item.padEnd(8)} ${stats(runs.filter((s) => s.owned.includes(item)))} | ${stats(runs.filter((s) => !s.owned.includes(item)))}`);
+}
+

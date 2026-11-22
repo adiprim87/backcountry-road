@@ -14,6 +14,9 @@ export function risk(m: Method, d: number): number {
   return d <= 2.5 ? 0.05 : Math.min(0.9, 0.2 + 0.2 * (d - 2.5));
 }
 
+/** Risk at this river today; a guide who knows the fords halves it. */
+export const crossRisk = (s: GameState, m: Method) => risk(m, depth(s)) * (s.owned.includes('scout') ? 0.5 : 1);
+
 export function canCross(s: GameState, m: Method) {
   if (m === 'float') return s.supplies.riverGear > 0;
   if (m === 'ferry') return !!ROUTE[s.at].ferry && s.supplies.money >= ROUTE[s.at].ferry!;
@@ -27,7 +30,7 @@ export function cross(s: GameState, m: Method) {
   if (m === 'float') s.supplies.riverGear--;
   if (m === 'ferry') s.supplies.money -= river.ferry!;
   s.phase = 'travel';
-  if (rand(s) >= risk(m, d)) return note(s, `You cross the ${river.name} safely.`);
+  if (rand(s) >= crossRisk(s, m)) return note(s, `You cross the ${river.name} safely.`);
 
   const lost = Math.round(s.supplies.food * (0.2 + rand(s) * 0.3));
   s.supplies.food -= lost;

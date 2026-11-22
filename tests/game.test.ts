@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { alive, newGame, type GameState } from '../src/game/state';
+import { alive, newGame, score, type GameState } from '../src/game/state';
 import { advanceDay, finishHunt, treatSick } from '../src/game/tick';
 import { buy, unitPrice } from '../src/game/store';
 import { TOTAL_MILES } from '../src/game/route';
@@ -67,7 +67,8 @@ describe('store', () => {
 });
 
 import { cross, depth, risk } from '../src/game/river';
-import { currentEvent, resolveEvent, rollEvent } from '../src/game/events';
+import { currentEvent, priceFactor, resolveEvent, rollEvent, startEvent } from '../src/game/events';
+import { crossRisk } from '../src/game/river';
 
 describe('rivers', () => {
   it('fording a high river goes wrong far more often than the ferry', () => {
@@ -177,9 +178,9 @@ describe('events', () => {
       const s = newGame('merchant', NAMES, 9);
       Object.assign(s.supplies, { food: 200, shot: 50, medicine: 2, money: 50, wheels: 1, axles: 1, tongues: 1 });
       s.at = 6; s.miles = 195;
-      s.pending = { id: e.id, target: 1, part: 'wheels' };
-      s.phase = 'event';
-      expect(currentEvent(s).text.length).toBeGreaterThan(0);
+      s.rep.catawba = 2; // so the reputation-gated guide can set up
+      startEvent(s, e.id);
+      expect(currentEvent(s).text).not.toMatch(/undefined|NaN/);
       resolveEvent(s, i);
     }
   });
@@ -236,5 +237,78 @@ describe('hunt payout and river stops', () => {
     advanceDay(s);
     expect(s.miles).toBe(55);
     expect(s.phase).toBe('river');
+  });
+});
+
+describe('trading and reputation', () => {
+  const trader = (seed: number) => {
+    const s = newGame('merchant', NAMES, seed);
+    Object.assign(s.supplies, { food: 100, shot: 100, medicine: 10, money: 200 });
+    s.miles = 100;
+    return s;
+  };
+
+  it('offers are randomized per encounter', () => {
+    const offers = new Set<string>();
+    for (let seed = 1; seed <= 30; seed++) {
+      const s = trader(seed);
+      startEvent(s, 'catawba');
+      offers.add(JSON.stringify(s.pending!.offer));
+    }
+    expect(offers.size).toBeGreaterThan(10);
+  });
+
+  it('fair trades and gifts raise standing, which lowers later prices', () => {
+    const s = trader(4);
+    startEvent(s, 'catawba');
+    resolveEvent(s, 1); // trade with a gift
+    expect(s.rep.catawba).toBe(2);
+    expect(priceFactor(s, 'catawba')).toBeLessThan(priceFactor(s, 'cherokee'));
+    startEvent(s, 'catawba');
+    expect(currentEvent(s).text).toMatch(/heard well of you/);
+  });
+
+  it('hard bargains cost standing and the next greeting says so', () => {
+    const s = trader(5);
+    s.rep.settlers = -2;
+    startEvent(s, 'homestead');
+    expect(currentEvent(s).text).toMatch(/wary/);
+    resolveEvent(s, 2);
+    expect(s.rep.settlers).toBeLessThan(-2);
+  });
+
+  it('a trusted guide offer only appears after earning trust', () => {
+    const s = trader(6);
+    for (let i = 0; i < 300; i++) rollEvent(s);
+    expect(s.seen).not.toContain('scout');
+  });
+
+  it('big items: horses speed you up, the deed pays on arrival, the guide halves river risk', () => {
+    const slow = trader(7), fast = trader(7);
+    fast.owned.push('horses');
+    slow.at = fast.at = 3; // past Orangeburg, so neither hits a landmark today
+    advanceDay(slow); advanceDay(fast);
+    expect(fast.miles).toBeGreaterThan(slow.miles);
+
+    const s = trader(8);
+    s.at = 4;
+    const before = crossRisk(s, 'ford');
+    s.owned.push('scout');
+    expect(crossRisk(s, 'ford')).toBeCloseTo(before / 2);
+
+    const a = trader(9), b = trader(9);
+    a.result = b.result = 'won';
+    b.owned.push('deed');
+    expect(score(b) - score(a)).toBe(500);
+  });
+
+  it('buying a big item spends the rolled price', () => {
+    const s = trader(10);
+    startEvent(s, 'rifle');
+    const price = s.pending!.offer!.giveQty;
+    expect(price).toBeGreaterThanOrEqual(55);
+    resolveEvent(s, 0);
+    expect(s.owned).toContain('rifle');
+    expect(s.supplies.money).toBe(200 - price);
   });
 });

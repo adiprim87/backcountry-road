@@ -63,7 +63,8 @@ export function advanceDay(s: GameState, travel = true) {
   if (checkEnd(s) || !travel || s.pace === 'rest') return;
 
   // Morale scales speed from 50% (despair) to 100%.
-  const gain = Math.round(PACE[s.pace].miles * weather.miles * (0.5 + s.morale / 200));
+  const horses = s.owned.includes('horses') ? 4 : 0;
+  const gain = Math.round((PACE[s.pace].miles + horses) * weather.miles * (0.5 + s.morale / 200));
   const next = ROUTE[s.at + 1];
   if (s.miles + gain < next.mile) {
     s.miles += gain;

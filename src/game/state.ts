@@ -25,10 +25,26 @@ export interface Supplies {
 
 export type Part = 'wheels' | 'axles' | 'tongues';
 
+/** Peoples you trade with; each remembers how you treated them. */
+export type Group = 'catawba' | 'cherokee' | 'settlers' | 'traders';
+/** Rare, costly purchases that change how a run plays. */
+export type Owned = 'rifle' | 'horses' | 'deed' | 'scout';
+export type Goods = Exclude<keyof Supplies, 'packHorses'>;
+
+/** A rolled trade: you hand over `give`, you receive `get`. */
+export interface Offer {
+  give: Goods;
+  giveQty: number;
+  get?: Goods; // absent for big items (see Pending.id)
+  getQty?: number;
+}
+
 export interface Pending {
   id: string;
   target: number; // party index the event is about
   part?: Part;
+  offer?: Offer;
+  group?: Group;
 }
 
 export interface GameState {
@@ -47,6 +63,8 @@ export interface GameState {
   rain: number; // recent rainfall, 0-6; raises rivers
   pending?: Pending;
   seen: string[]; // once-only events already fired
+  rep: Record<Group, number>; // -3 (wary) .. 3 (trusted)
+  owned: Owned[];
   log: string[];
   result?: 'won' | 'lost';
   endReason?: string;
@@ -74,6 +92,8 @@ export function newGame(role: Role, names: string[], seed = Date.now()): GameSta
     phase: 'store',
     rain: 0,
     seen: [],
+    rep: { catawba: 0, cherokee: 0, settlers: 0, traders: 0 },
+    owned: [],
     log: [],
   };
 }
@@ -82,7 +102,8 @@ export const alive = (s: GameState) => s.party.filter((m) => m.status !== 'dead'
 
 export function score(s: GameState): number {
   const living = alive(s);
-  return living.length * 100 + living.reduce((a, m) => a + m.health, 0) + Math.floor(s.supplies.food / 10) + s.supplies.money - s.day;
+  const deed = s.result === 'won' && s.owned.includes('deed') ? 500 : 0;
+  return living.length * 100 + living.reduce((a, m) => a + m.health, 0) + Math.floor(s.supplies.food / 10) + s.supplies.money - s.day + deed;
 }
 
 export const clamp = (n: number, max = 100) => Math.max(0, Math.min(max, Math.round(n)));

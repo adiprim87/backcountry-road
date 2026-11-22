@@ -1,7 +1,7 @@
-import { alive, newGame, ROLES, score, type GameState, type Pace, type Rations, type Role } from '../game/state';
+import { alive, newGame, ROLES, score, type GameState, type Group, type Pace, type Rations, type Role } from '../game/state';
 import { advanceDay, carryLimit, dateText, finishHunt, foodDays, treatSick } from '../game/tick';
-import { currentEvent, resolveEvent } from '../game/events';
-import { canCross, cross, depth, risk, waitRiver, type Method } from '../game/river';
+import { currentEvent, mood, OWNED_LABEL, resolveEvent } from '../game/events';
+import { canCross, cross, crossRisk, depth, waitRiver, type Method } from '../game/river';
 import { clearSave, load, save } from '../game/save';
 import { ROUTE, TOTAL_MILES } from '../game/route';
 import { buy, ITEMS, unitPrice, type ItemKey } from '../game/store';
@@ -66,7 +66,17 @@ function ledger(g: GameState) {
     <dt>Morale</dt><dd>${healthWord(g.morale)}</dd>
     <dt>Traveled</dt><dd>${g.miles} of ${TOTAL_MILES} mi</dd>
     <dt>Next</dt><dd>${next ? `${next.name}, ${next.mile - g.miles} mi` : '-'}</dd>
+    ${relations(g)}
+    ${g.owned.length ? `<dt>Owned</dt><dd>${g.owned.map((o) => OWNED_LABEL[o]).join(', ')}</dd>` : ''}
   </dl><ul class="party">${party}</ul>`;
+}
+
+const GROUPS: [Group, string][] = [['catawba', 'Catawba'], ['cherokee', 'Cherokee'], ['settlers', 'Settlers'], ['traders', 'Traders']];
+
+/** Standing with each people you've dealt with (hidden until it moves off neutral). */
+function relations(g: GameState) {
+  const known = GROUPS.filter(([k]) => g.rep[k] !== 0);
+  return known.length ? `<dt>Relations</dt><dd>${known.map(([k, n]) => `${n} ${mood(g.rep[k])}`).join(', ')}</dd>` : '';
 }
 
 function travel(g: GameState) {
@@ -98,10 +108,11 @@ const riskWord = (r: number) => (r < 0.08 ? 'low' : r < 0.25 ? 'moderate' : r < 
 function river(g: GameState) {
   const here = ROUTE[g.at];
   const d = depth(g);
-  const opt = (m: Method, label: string) => btn('cross', `${label} (risk: ${riskWord(risk(m, d))})`, m, !canCross(g, m));
+  const opt = (m: Method, label: string) => btn('cross', `${label} (risk: ${riskWord(crossRisk(g, m))})`, m, !canCross(g, m));
   return `<h2>${here.name}</h2><p>${here.text}</p>
   <dl class="ledger"><dt>Depth</dt><dd>${d} ft</dd><dt>Weather</dt><dd>${g.weather}</dd>
   <dt>River gear</dt><dd>${g.supplies.riverGear}</dd><dt>Money</dt><dd>£${g.supplies.money}</dd></dl>
+  ${g.owned.includes('scout') ? '<p>Your guide knows these fords. Every crossing is safer.</p>' : ''}
   <p>How will you cross?</p>
   ${opt('ford', 'Ford it')}
   ${opt('float', 'Caulk the wagon and float it')}
@@ -129,6 +140,7 @@ function end(g: GameState) {
   <dt>Survivors</dt><dd>${alive(g).length} of ${g.party.length}</dd>
   <dt>Food left</dt><dd>${g.supplies.food} lb</dd><dt>Money left</dt><dd>£${g.supplies.money}</dd>
   ${g.result === 'won' ? `<dt>Score</dt><dd>${score(g)}</dd>` : ''}</dl>
+  ${g.result === 'won' && g.owned.includes('deed') ? '<p>Your land warrant for 200 acres on Long Canes Creek is good. You have a home on the frontier. (+500 score)</p>' : ''}
   ${dead.length ? `<p>Lost on the road:</p><ul>${dead.map((m) => `<li>${esc(m.name)}, ${m.cause}</li>`).join('')}</ul>` : ''}
   ${btn('again', 'Play again')}`;
 }
@@ -169,7 +181,7 @@ function act(name: string, arg: string) {
     else if (name === 'hunt') {
       const g = s;
       g.phase = 'hunt';
-      import('../scenes').then((m) => m.startHunt({ shots: g.supplies.shot, ranger: g.role === 'ranger', carry: carryLimit(g) }, (meat, used) => {
+      import('../scenes').then((m) => m.startHunt({ shots: g.supplies.shot, ranger: g.role === 'ranger', rifle: g.owned.includes('rifle'), carry: carryLimit(g) }, (meat, used) => {
         finishHunt(g, meat, used);
         render();
       }));

@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 
 const FONT = '"Courier New", Courier, monospace';
 
-export interface HuntOpts { shots: number; ranger: boolean; carry: number }
+export interface HuntOpts { shots: number; ranger: boolean; rifle: boolean; carry: number }
 export type HuntDone = (meat: number, used: number) => void;
 
 const W = 800, H = 450, SECONDS = 30;
@@ -76,7 +76,7 @@ export class HuntScene extends Phaser.Scene {
     this.used++;
     const flash = this.add.circle(x, y, 6, 0xffffcc);
     this.tweens.add({ targets: flash, alpha: 0, scale: 3, duration: 250, onComplete: () => flash.destroy() });
-    const reach = this.opts.ranger ? 1.5 : 1.2;
+    const reach = (this.opts.ranger ? 1.5 : 1.2) * (this.opts.rifle ? 1.3 : 1);
     const hit = this.animals.find((a) => Phaser.Math.Distance.Between(x, y, a.obj.x, a.obj.y) < a.r * reach);
     if (hit) {
       this.meat += hit.lb;
