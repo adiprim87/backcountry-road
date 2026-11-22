@@ -511,3 +511,17 @@ describe('daily challenge and endings', () => {
     expect(epilogue(s)).toEqual(['The warrant for 200 acres on Long Canes Creek is never claimed.']);
   });
 });
+
+import { ART, PALETTE } from '../src/scenes/art';
+
+describe('pixel art', () => {
+  it('every sprite is a clean rectangle using only palette colors', () => {
+    for (const [key, a] of Object.entries(ART)) {
+      const pal = { ...PALETTE, ...a.pal };
+      for (const row of a.rows) {
+        expect(row.length, key).toBe(a.rows[0].length);
+        for (const ch of row) expect(ch === '.' || ch in pal, `${key}: '${ch}'`).toBe(true);
+      }
+    }
+  });
+});

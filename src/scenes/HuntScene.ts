@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { sfx } from '../sound';
+import { makeTextures } from './sprites';
 
 const FONT = '"Courier New", Courier, monospace';
 
@@ -7,14 +8,15 @@ export interface HuntOpts { shots: number; ranger: boolean; rifle: boolean; carr
 export type HuntDone = (meat: number, used: number) => void;
 
 const W = 800, H = 450, SECONDS = 30;
+const TOP = 1000; // above animals, whose depth is their y
 const GAME = [
-  { name: 'rabbit', lb: 3, r: 10, speed: 220, color: 0xc8b89a, w: 4 },
-  { name: 'turkey', lb: 12, r: 14, speed: 150, color: 0x8a5a2b, w: 3 },
-  { name: 'deer', lb: 50, r: 24, speed: 120, color: 0xb5835a, w: 2 },
-  { name: 'boar', lb: 40, r: 20, speed: 170, color: 0x6b5444, w: 1.5 },
+  { name: 'rabbit', lb: 3, r: 10, speed: 220, w: 4 },
+  { name: 'turkey', lb: 12, r: 14, speed: 150, w: 3 },
+  { name: 'deer', lb: 50, r: 24, speed: 120, w: 2 },
+  { name: 'boar', lb: 40, r: 20, speed: 170, w: 1.5 },
 ];
 
-interface Animal { obj: Phaser.GameObjects.Ellipse; lb: number; r: number; vx: number }
+interface Animal { obj: Phaser.GameObjects.Image; name: string; lb: number; r: number; vx: number }
 
 export class HuntScene extends Phaser.Scene {
   private opts!: HuntOpts;
@@ -36,22 +38,22 @@ export class HuntScene extends Phaser.Scene {
   }
 
   create() {
+    makeTextures(this);
     const g = this.add.graphics();
     g.fillStyle(0x10200f).fillRect(0, 0, W, H);
-    g.fillStyle(0x1a3318).fillRect(0, 300, W, H - 300);
-    for (let i = 0; i < 14; i++) {
-      const x = Phaser.Math.Between(0, W), base = Phaser.Math.Between(260, 330);
-      g.fillStyle(0x3b2a1e).fillRect(x - 4, base - 160, 8, 160);
-      g.fillStyle(0x1f4a24).fillTriangle(x - 30, base - 110, x + 30, base - 110, x, base - 230);
-    }
-    this.hud = this.add.text(12, 10, '', { fontFamily: FONT, fontSize: '18px', color: '#7dff8a' });
+    g.fillStyle(0x1a3318).fillRect(0, 140, W, H - 140);
+    // Back row of pines darker and smaller, front row full size.
+    for (let i = 0; i < 16; i++) this.add.image(Phaser.Math.Between(0, W), Phaser.Math.Between(120, 150), 'pine').setOrigin(0.5, 1).setScale(0.6).setTint(0x99bb99);
+    for (let i = 0; i < 9; i++) this.add.image(Phaser.Math.Between(0, W), Phaser.Math.Between(150, 175), 'pine').setOrigin(0.5, 1);
+    for (let i = 0; i < 30; i++) this.add.image(Phaser.Math.Between(0, W), Phaser.Math.Between(180, H), 'grass').setAlpha(0.7);
+    this.hud = this.add.text(12, 10, '', { fontFamily: FONT, fontSize: '18px', color: '#7dff8a' }).setDepth(TOP);
     this.time.addEvent({ delay: 900, loop: true, callback: () => this.spawn() });
     this.time.addEvent({ delay: 1000, repeat: SECONDS - 1, callback: () => { if (--this.left <= 0) this.finish(); } });
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => this.shoot(p.x, p.y));
     // Keyboard: arrows aim, Space fires. Leaving uses keyup so the release can't also click the next screen's button.
     this.aim = this.add.graphics({ x: W / 2, y: 300 }).lineStyle(2, 0xffffcc)
       .strokeCircle(0, 0, 14).lineBetween(-22, 0, -6, 0).lineBetween(6, 0, 22, 0).lineBetween(0, -22, 0, -6).lineBetween(0, 6, 0, 22)
-      .setVisible(false).setDepth(5);
+      .setVisible(false).setDepth(TOP);
     const kb = this.input.keyboard!;
     this.keys = kb.createCursorKeys();
     kb.addCapture('ENTER');
@@ -68,17 +70,19 @@ export class HuntScene extends Phaser.Scene {
     const t = GAME.find((g) => (r -= g.w) < 0) ?? GAME[0];
     const fromLeft = Math.random() < 0.5;
     const speed = t.speed * (this.opts.ranger ? 0.8 : 1) * Phaser.Math.FloatBetween(0.8, 1.2);
-    const obj = this.add.ellipse(fromLeft ? -30 : W + 30, Phaser.Math.Between(150, 420), t.r * 2.4, t.r * 1.6, t.color);
-    this.animals.push({ obj, lb: t.lb, r: t.r, vx: fromLeft ? speed : -speed });
+    const y = Phaser.Math.Between(190, 420);
+    const obj = this.add.image(fromLeft ? -30 : W + 30, y, `${t.name}0`).setFlipX(!fromLeft).setDepth(y); // nearer animals draw in front
+    this.animals.push({ obj, name: t.name, lb: t.lb, r: t.r, vx: fromLeft ? speed : -speed });
   }
 
-  update(_: number, dt: number) {
-    for (const a of this.animals) a.obj.x += (a.vx * dt) / 1000;
-    const k = this.keys, step = (420 * dt) / 1000;
+  update(time: number, dt: number) {
+    const step = Math.floor(time / 160) % 2; // two-frame walk cycle
+    for (const a of this.animals) a.obj.setX(a.obj.x + (a.vx * dt) / 1000).setTexture(`${a.name}${step}`);
+    const k = this.keys, move = (420 * dt) / 1000;
     const dx = (k.right.isDown ? 1 : 0) - (k.left.isDown ? 1 : 0), dy = (k.down.isDown ? 1 : 0) - (k.up.isDown ? 1 : 0);
     if (dx || dy) {
       this.aim.setVisible(true);
-      this.aim.setPosition(Phaser.Math.Clamp(this.aim.x + dx * step, 0, W), Phaser.Math.Clamp(this.aim.y + dy * step, 40, H));
+      this.aim.setPosition(Phaser.Math.Clamp(this.aim.x + dx * move, 0, W), Phaser.Math.Clamp(this.aim.y + dy * move, 40, H));
     }
     this.animals = this.animals.filter((a) => {
       const gone = a.obj.x < -40 || a.obj.x > W + 40;
@@ -95,7 +99,7 @@ export class HuntScene extends Phaser.Scene {
     if (this.used >= this.opts.shots) return;
     this.used++;
     sfx.shot();
-    const flash = this.add.circle(x, y, 6, 0xffffcc);
+    const flash = this.add.circle(x, y, 6, 0xffffcc).setDepth(TOP);
     this.tweens.add({ targets: flash, alpha: 0, scale: 3, duration: 250, onComplete: () => flash.destroy() });
     const reach = (this.opts.ranger ? 1.5 : 1.2) * (this.opts.rifle ? 1.3 : 1);
     const hit = this.animals.find((a) => Phaser.Math.Distance.Between(x, y, a.obj.x, a.obj.y) < a.r * reach);
@@ -103,7 +107,7 @@ export class HuntScene extends Phaser.Scene {
       sfx.hit();
       const lb = Math.max(1, Math.round(hit.lb * this.opts.meat));
       this.meat += lb;
-      const label = this.add.text(hit.obj.x, hit.obj.y - 20, `+${lb} lb`, { fontFamily: FONT, fontSize: '16px', color: '#ffffcc' }).setOrigin(0.5);
+      const label = this.add.text(hit.obj.x, hit.obj.y - 20, `+${lb} lb`, { fontFamily: FONT, fontSize: '16px', color: '#ffffcc' }).setOrigin(0.5).setDepth(TOP);
       this.tweens.add({ targets: label, y: label.y - 30, alpha: 0, duration: 800, onComplete: () => label.destroy() });
       hit.obj.destroy();
       this.animals = this.animals.filter((a) => a !== hit);
@@ -122,9 +126,9 @@ export class HuntScene extends Phaser.Scene {
     this.time.removeAllEvents();
     this.updateHud();
     const extra = this.meat >= this.opts.carry ? `\nThat's all you can carry (${this.opts.carry} lb).` : '';
-    this.add.rectangle(W / 2, H / 2, 520, 130, 0x0b0f0a, 0.9).setStrokeStyle(2, 0x7dff8a);
+    this.add.rectangle(W / 2, H / 2, 520, 130, 0x0b0f0a, 0.9).setStrokeStyle(2, 0x7dff8a).setDepth(TOP);
     this.add.text(W / 2, H / 2, `The hunt is over.\nYou shot ${this.meat} lb of game.${extra}\n\nClick, tap or press Enter to return.`,
-      { fontFamily: FONT, fontSize: '18px', color: '#7dff8a', align: 'center' }).setOrigin(0.5);
+      { fontFamily: FONT, fontSize: '18px', color: '#7dff8a', align: 'center' }).setOrigin(0.5).setDepth(TOP);
     // Ignore the click that ended the hunt, so the summary is readable.
     this.time.delayedCall(400, () => (this.canLeave = true));
   }

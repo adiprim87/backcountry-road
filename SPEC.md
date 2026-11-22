@@ -164,6 +164,7 @@ Most events offer a choice with a trade-off, for example "use medicine or press 
 
 ## Tone & history
 - The look is a green-on-black terminal ledger with monospace type and light scanlines.
+- The map and both mini-games use small pixel sprites (wagon, towns, fort, pines, game animals, angler, float, fish). They're written as text grids in `src/scenes/art.ts` and turned into textures when the game loads, so there are no image files.
 - Cherokee and Catawba people appear as traders, guides and bearers of news. There are no raids or caricatures.
 - Charleston's opening text acknowledges that the colony's wealth rested on enslaved labor. Slavery is never turned into a game mechanic.
 - Names, dates and distances are approximate, and a notes line in the game says so.
