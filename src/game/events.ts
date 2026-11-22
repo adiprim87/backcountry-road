@@ -21,6 +21,7 @@ interface GameEvent {
 export const PART_NAME: Record<Part, string> = { wheels: 'wheel', axles: 'axle', tongues: 'tongue' };
 const PARTS: Part[] = ['wheels', 'axles', 'tongues'];
 const nextMile = (s: GameState) => ROUTE[s.at + 1].mile;
+const LAST_RIVER = Math.max(...ROUTE.filter((l) => l.kind === 'river').map((l) => l.mile));
 const loseFood = (s: GameState, min: number, max: number) => {
   const n = Math.round(s.supplies.food * (min + rand(s) * (max - min)));
   s.supplies.food -= n;
@@ -382,7 +383,8 @@ export const EVENTS: GameEvent[] = [
     // Only offered to parties who have earned real trust.
     id: 'scout',
     once: true,
-    weight: (s) => (!s.owned.includes('scout') && (s.rep.catawba >= 2 || s.rep.cherokee >= 2) ? 3 : 0),
+    // Friendly standing (1+) with either people; pointless once the last river is behind you.
+    weight: (s) => (!s.owned.includes('scout') && s.miles < LAST_RIVER && (s.rep.catawba >= 1 || s.rep.cherokee >= 1) ? 3 : 0),
     setup: (s, p) => {
       p.group = s.rep.cherokee >= s.rep.catawba ? 'cherokee' : 'catawba';
       p.offer = { give: 'money', giveQty: Math.round(vary(s, 30) * priceFactor(s, p.group)) };

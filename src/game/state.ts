@@ -1,8 +1,11 @@
+import type { Quiz } from './quiz';
+
 export type Role = 'merchant' | 'farmer' | 'ranger';
 export type Pace = 'rest' | 'steady' | 'strenuous' | 'grueling';
 export type Rations = 'filling' | 'meager' | 'bare';
 export type Phase = 'store' | 'travel' | 'event' | 'river' | 'hunt' | 'landmark' | 'end';
 export type Weather = 'fair' | 'hot' | 'rain' | 'storm' | 'fog';
+export type Difficulty = 'easy' | 'normal' | 'hard';
 
 export interface Member {
   name: string;
@@ -50,6 +53,7 @@ export interface Pending {
 export interface GameState {
   rng: number;
   role: Role;
+  difficulty: Difficulty;
   day: number;
   miles: number;
   at: number; // index into ROUTE of the last landmark reached
@@ -65,6 +69,7 @@ export interface GameState {
   seen: string[]; // once-only events already fired
   rep: Record<Group, number>; // -3 (wary) .. 3 (trusted)
   owned: Owned[];
+  quiz?: Quiz; // the reckoning problem at the current landmark
   log: string[];
   result?: 'won' | 'lost';
   endReason?: string;
@@ -76,10 +81,18 @@ export const ROLES: Record<Role, { label: string; money: number; perk: string }>
   ranger: { label: 'Ranger', money: 150, perk: 'A better shot when hunting.' },
 };
 
-export function newGame(role: Role, names: string[], seed = Date.now()): GameState {
+/** money: starting purse; events: daily event chance; flux: daily sickness chance. All multipliers. */
+export const DIFFICULTY: Record<Difficulty, { label: string; money: number; events: number; flux: number }> = {
+  easy: { label: 'Easy', money: 1.3, events: 0.8, flux: 0.5 },
+  normal: { label: 'Normal', money: 1, events: 1, flux: 1 },
+  hard: { label: 'Hard', money: 0.8, events: 1.2, flux: 2.5 },
+};
+
+export function newGame(role: Role, names: string[], seed = Date.now(), difficulty: Difficulty = 'normal'): GameState {
   return {
     rng: seed | 0,
     role,
+    difficulty,
     day: 0,
     miles: 0,
     at: 0,
@@ -88,7 +101,7 @@ export function newGame(role: Role, names: string[], seed = Date.now()): GameSta
     morale: 80,
     weather: 'fair',
     party: names.map((name) => ({ name, health: 100, status: 'well' })),
-    supplies: { food: 0, shot: 0, wheels: 0, axles: 0, tongues: 0, medicine: 0, riverGear: 0, packHorses: 0, money: ROLES[role].money },
+    supplies: { food: 0, shot: 0, wheels: 0, axles: 0, tongues: 0, medicine: 0, riverGear: 0, packHorses: 0, money: Math.round(ROLES[role].money * DIFFICULTY[difficulty].money) },
     phase: 'store',
     rain: 0,
     seen: [],

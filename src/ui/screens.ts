@@ -1,10 +1,13 @@
-import { alive, newGame, ROLES, score, type GameState, type Group, type Pace, type Rations, type Role } from '../game/state';
+import { alive, DIFFICULTY, newGame, ROLES, score, type Difficulty, type GameState, type Group, type Pace, type Rations, type Role } from '../game/state';
 import { advanceDay, carryLimit, dateText, finishHunt, foodDays, treatSick } from '../game/tick';
 import { currentEvent, GROUP_NAME, mood, OWNED_LABEL, resolveEvent } from '../game/events';
 import { canCross, cross, crossRisk, depth, waitRiver, type Method } from '../game/river';
 import { clearSave, load, save } from '../game/save';
 import { ROUTE, TOTAL_MILES } from '../game/route';
 import { buy, ITEMS, unitPrice, type ItemKey } from '../game/store';
+import { loadScores, recordScore, type ScoreEntry } from '../game/scores';
+import { isMuted, sfx, toggleMute } from '../sound';
+import { answerQuiz, QUIZ_REWARD } from '../game/quiz';
 
 const DEFAULT_NAMES = ['Thomas', 'Mary', 'Johann', 'Sarah', 'Elias'];
 
@@ -12,6 +15,9 @@ let s: GameState | null = null;
 let view: 'title' | 'outfit' = 'title';
 let root: HTMLElement;
 let scenesLoaded = false;
+// Remembered between renders: which run's score was recorded, and what changed since the last render (for sounds).
+let recorded: { run: GameState; entry: ScoreEntry; list: ScoreEntry[] } | null = null;
+let last = { run: null as GameState | null, phase: '', dead: 0 };
 
 const esc = (t: string) => t.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 const btn = (act: string, label: string, arg = '', disabled = false) =>
@@ -27,7 +33,19 @@ function title() {
   Mind your food, your wagon and the rivers.</p>
   ${load() ? btn('continue', 'Continue') : ''}
   ${btn('outfit', 'New game')}
+  ${soundBtn()}
+  ${scores(loadScores())}
   <p class="note">Names, dates and distances are approximate.</p>`;
+}
+
+const soundBtn = () => btn('sound', isMuted() ? 'Sound: off' : 'Sound: on');
+
+function scores(list: ScoreEntry[], mine?: ScoreEntry) {
+  if (!list.length) return '';
+  const rows = list.map((e) => `<tr${e === mine ? ' class="mine"' : ''}><td>${esc(e.name)}</td><td>${esc(String(e.role))}</td>
+    <td>${DIFFICULTY[e.difficulty]?.label ?? ''}</td><td>${e.days}</td><td>${e.score}</td></tr>`).join('');
+  return `<h2>Best journeys</h2><table class="scores"><thead><tr><th>Leader</th><th>Role</th><th>Level</th><th>Days</th><th>Score</th></tr></thead>
+  <tbody>${rows}</tbody></table>`;
 }
 
 function outfit() {
@@ -36,9 +54,13 @@ function outfit() {
      ${ROLES[r].label}: £${ROLES[r].money}. ${ROLES[r].perk}</label>`).join('');
   const names = DEFAULT_NAMES.map((n, i) =>
     `<label class="row">${i === 0 ? 'Leader' : `Companion ${i}`} <input name="member" value="${n}" maxlength="16" required></label>`).join('');
+  const levels = (Object.keys(DIFFICULTY) as Difficulty[]).map((d) =>
+    `<label class="row"><input type="radio" name="difficulty" value="${d}"${d === 'normal' ? ' checked' : ''}> ${DIFFICULTY[d].label}</label>`).join('');
   return `<h2>Outfitting</h2>
   <p>${ROUTE[0].text}</p>
   <form><fieldset><legend>Who are you?</legend>${roles}</fieldset>
+  <fieldset><legend>Difficulty</legend>${levels}
+  <p class="note">Easy: more money, less sickness and fewer events. Hard: less money, more sickness and more events.</p></fieldset>
   <fieldset><legend>Your party</legend>${names}</fieldset>
   <button type="submit">Go to the store</button></form>`;
 }
@@ -51,7 +73,7 @@ function store(g: GameState) {
   }).join('');
   return `<h2>Store at ${ROUTE[g.at].name}</h2>
   <p>Money: £${g.supplies.money}. A party of ${alive(g).length} eats ${alive(g).length * 3} lb a day on filling rations.</p>
-  <table><thead><tr><th>Item</th><th>Price</th><th>Have</th><th>Buy</th></tr></thead><tbody>${rows}</tbody></table>
+  <table class="store"><thead><tr><th>Item</th><th>Price</th><th>Have</th><th>Buy</th></tr></thead><tbody>${rows}</tbody></table>
   ${btn('travel', 'Leave the store')}`;
 }
 
@@ -90,6 +112,7 @@ function travel(g: GameState) {
   ${btn('hunt', 'Go hunting (a day)', '', g.supplies.shot === 0)}
   ${alive(g).some((m) => m.status !== 'well') ? btn('treat', `Treat the sick (${g.supplies.medicine} doses)`, '', g.supplies.medicine === 0) : ''}
   ${atStore ? btn('store', `Visit the ${here.name} store`) : ''}
+  ${soundBtn()}
   ${log(g)}`;
 }
 
@@ -117,6 +140,7 @@ function river(g: GameState) {
   ${opt('float', 'Caulk the wagon and float it')}
   ${here.ferry ? opt('ferry', `Take the ferry, £${here.ferry}`) : ''}
   ${btn('wait', 'Wait a day')}
+  ${quiz(g)}
   ${log(g)}`;
 }
 
@@ -125,10 +149,22 @@ function hunt(g: GameState) {
   You can carry back ${carryLimit(g)} lb. Buy pack horses at a store to carry more.</p>`;
 }
 
+/** The optional reckoning problem at a landmark. */
+function quiz(g: GameState) {
+  const z = g.quiz;
+  if (!z || z.at !== g.at) return '';
+  const body = !z.result
+    ? `<form data-form="quiz" class="row"><label>Answer <input name="answer" type="number" inputmode="numeric" required></label>
+       <button type="submit">Check</button></form>`
+    : z.result === 'right' ? `<p>Right: ${z.answer}. You earn £${QUIZ_REWARD}.</p>` : `<p>Not quite. ${esc(z.why)}</p>`;
+  return `<fieldset class="quiz"><legend>Reckoning (optional, £${QUIZ_REWARD} if right)</legend><p>${esc(z.q)}</p>${body}</fieldset>`;
+}
+
 function landmark(g: GameState) {
   const here = ROUTE[g.at];
   return `<h2>${here.name}</h2><p>${here.text}</p>
-  ${here.store ? btn('store', 'Visit the store') : ''} ${btn('travel', 'Continue')}`;
+  ${here.store ? btn('store', 'Visit the store') : ''} ${btn('travel', 'Continue')}
+  ${quiz(g)}`;
 }
 
 function end(g: GameState) {
@@ -141,10 +177,31 @@ function end(g: GameState) {
   ${g.result === 'won' ? `<dt>Score</dt><dd>${score(g)}</dd>` : ''}</dl>
   ${g.result === 'won' && g.owned.includes('deed') ? '<p>Your land warrant for 200 acres on Long Canes Creek is good. You have a home on the frontier. (+500 score)</p>' : ''}
   ${dead.length ? `<p>Lost on the road:</p><ul>${dead.map((m) => `<li>${esc(m.name)}, ${m.cause}</li>`).join('')}</ul>` : ''}
+  ${recorded?.run === g ? scores(recorded.list, recorded.entry) : ''}
   ${btn('again', 'Play again')}`;
 }
 
+/** Once per finished run: put a win on the score table. */
+function recordEnd(g: GameState) {
+  if (g.result !== 'won' || recorded?.run === g) return;
+  const entry: ScoreEntry = { name: g.party[0].name, role: g.role, difficulty: g.difficulty, score: score(g), days: g.day };
+  recorded = { run: g, entry, list: recordScore(entry) };
+}
+
+function playSounds() {
+  const dead = s ? s.party.length - alive(s).length : 0;
+  // Skip the first render of a run (a continued save shouldn't replay old news).
+  if (s && last.run === s) {
+    if (s.phase === 'end' && last.phase !== 'end') (s.result === 'won' ? sfx.won : sfx.lost)();
+    else if (dead > last.dead) sfx.death();
+    else if (s.phase === 'event' && last.phase !== 'event') sfx.event();
+  }
+  last = { run: s, phase: s?.phase ?? '', dead };
+}
+
 function render() {
+  if (s?.phase === 'end') recordEnd(s);
+  playSounds();
   if (!s) root.innerHTML = view === 'title' ? title() : outfit();
   else root.innerHTML = { store, travel, landmark, end, event, river, hunt }[s.phase](s);
   if (s?.phase === 'end') clearSave();
@@ -168,6 +225,7 @@ function act(name: string, arg: string) {
   if (name === 'outfit') view = 'outfit';
   else if (name === 'continue') s = load();
   else if (name === 'again') { s = null; view = 'title'; }
+  else if (name === 'sound') toggleMute();
   else if (s) {
     if (name === 'buy') { const [k, n] = arg.split(':'); buy(s, k as ItemKey, Number(n)); }
     else if (name === 'store') s.phase = 'store';
@@ -206,9 +264,15 @@ export function mount(el: HTMLElement) {
   });
   el.addEventListener('submit', (e) => {
     e.preventDefault();
-    const f = new FormData(e.target as HTMLFormElement);
+    const form = e.target as HTMLFormElement;
+    const f = new FormData(form);
+    if (form.dataset.form === 'quiz') {
+      if (s) answerQuiz(s, Number(f.get('answer')));
+      render();
+      return;
+    }
     const names = f.getAll('member').map((n, i) => String(n).trim() || DEFAULT_NAMES[i]);
-    s = newGame(f.get('role') as Role, names);
+    s = newGame(f.get('role') as Role, names, Date.now(), (f.get('difficulty') ?? 'normal') as Difficulty);
     render();
   });
   render();

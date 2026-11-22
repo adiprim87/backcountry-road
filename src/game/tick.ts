@@ -1,7 +1,8 @@
-import { alive, checkEnd, clamp, damage, note, type GameState, type Pace, type Rations, type Weather } from './state';
+import { alive, checkEnd, clamp, damage, DIFFICULTY, note, type GameState, type Pace, type Rations, type Weather } from './state';
 import { rand, weighted } from './rng';
 import { ROUTE } from './route';
 import { rollEvent } from './events';
+import { makeQuiz } from './quiz';
 
 export const PACE: Record<Pace, { miles: number; health: number }> = {
   rest: { miles: 0, health: 6 },
@@ -54,7 +55,7 @@ export function advanceDay(s: GameState, travel = true) {
     if (ill && m.status !== 'dead' && rand(s) < (resting ? 0.35 : 0.15)) {
       m.status = 'well';
       note(s, `${m.name} is feeling better.`);
-    } else if (!ill && m.status !== 'dead' && rand(s) < (resting ? FLUX_CHANCE / 4 : FLUX_CHANCE)) {
+    } else if (!ill && m.status !== 'dead' && rand(s) < (resting ? FLUX_CHANCE / 4 : FLUX_CHANCE) * DIFFICULTY[s.difficulty].flux) {
       m.status = 'sick';
       note(s, `${m.name} has come down with the bloody flux.`);
     }
@@ -68,7 +69,7 @@ export function advanceDay(s: GameState, travel = true) {
   const next = ROUTE[s.at + 1];
   if (s.miles + gain < next.mile) {
     s.miles += gain;
-    if (rand(s) < EVENT_CHANCE) rollEvent(s);
+    if (rand(s) < EVENT_CHANCE * DIFFICULTY[s.difficulty].events) rollEvent(s);
     return;
   }
   s.miles = next.mile;
@@ -78,7 +79,10 @@ export function advanceDay(s: GameState, travel = true) {
     s.result = 'won';
     s.endReason = `You reached ${next.name} on ${dateText(s.day)}.`;
     s.phase = 'end';
-  } else s.phase = next.kind === 'river' ? 'river' : 'landmark';
+  } else {
+    s.phase = next.kind === 'river' ? 'river' : 'landmark';
+    s.quiz = makeQuiz(s);
+  }
 }
 
 /** A day spent resting in camp, whatever the chosen pace. */

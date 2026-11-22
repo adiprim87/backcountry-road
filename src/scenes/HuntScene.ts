@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { sfx } from '../sound';
 
 const FONT = '"Courier New", Courier, monospace';
 
@@ -74,11 +75,13 @@ export class HuntScene extends Phaser.Scene {
     }
     if (this.used >= this.opts.shots) return;
     this.used++;
+    sfx.shot();
     const flash = this.add.circle(x, y, 6, 0xffffcc);
     this.tweens.add({ targets: flash, alpha: 0, scale: 3, duration: 250, onComplete: () => flash.destroy() });
     const reach = (this.opts.ranger ? 1.5 : 1.2) * (this.opts.rifle ? 1.3 : 1);
     const hit = this.animals.find((a) => Phaser.Math.Distance.Between(x, y, a.obj.x, a.obj.y) < a.r * reach);
     if (hit) {
+      sfx.hit();
       this.meat += hit.lb;
       const label = this.add.text(hit.obj.x, hit.obj.y - 20, `+${hit.lb} lb`, { fontFamily: FONT, fontSize: '16px', color: '#ffffcc' }).setOrigin(0.5);
       this.tweens.add({ targets: label, y: label.y - 30, alpha: 0, duration: 800, onComplete: () => label.destroy() });

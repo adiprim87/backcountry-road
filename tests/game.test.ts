@@ -222,6 +222,13 @@ describe('save', () => {
     expect(load()).toMatchObject({ phase: 'travel', pending: undefined });
   });
 
+  it('old saves without a difficulty load as normal', () => {
+    const s = newGame('merchant', NAMES, 2) as Partial<GameState>;
+    delete s.difficulty;
+    save(s as GameState);
+    expect(load()!.difficulty).toBe('normal');
+  });
+
   it('ignores junk in storage', () => {
     localStorage.setItem('backcountry-road-save-v1', '{"nope":1}');
     expect(load()).toBeNull();
@@ -296,6 +303,18 @@ describe('trading and reputation', () => {
     expect(s.seen).not.toContain('scout');
   });
 
+  it('a friendly people offer the guide, but not once the last river is crossed', () => {
+    const s = trader(6);
+    s.rep.catawba = 1;
+    for (let i = 0; i < 300 && !s.seen.includes('scout'); i++) rollEvent(s);
+    expect(s.seen).toContain('scout');
+    const late = trader(6);
+    late.rep.catawba = 3;
+    late.miles = 275;
+    for (let i = 0; i < 300; i++) rollEvent(late);
+    expect(late.seen).not.toContain('scout');
+  });
+
   it('big items: horses speed you up, the deed pays on arrival, the guide halves river risk', () => {
     const slow = trader(7), fast = trader(7);
     fast.owned.push('horses');
@@ -323,5 +342,90 @@ describe('trading and reputation', () => {
     resolveEvent(s, 0);
     expect(s.owned).toContain('rifle');
     expect(s.supplies.money).toBe(200 - price);
+  });
+});
+
+import { addScore, loadScores, type ScoreEntry } from '../src/game/scores';
+
+describe('difficulty and high scores', () => {
+  it('easy starts richer and hard poorer', () => {
+    const money = (d: 'easy' | 'normal' | 'hard') => newGame('farmer', NAMES, 1, d).supplies.money;
+    expect(money('easy')).toBeGreaterThan(money('normal'));
+    expect(money('hard')).toBeLessThan(money('normal'));
+  });
+
+  it('hard brings more sickness than easy over the same days', () => {
+    const sickDays = (d: 'easy' | 'hard') => {
+      let n = 0;
+      for (let seed = 1; seed <= 40; seed++) {
+        const s = newGame('merchant', NAMES, seed, d);
+        s.supplies.food = 5000;
+        s.pace = 'rest';
+        for (let i = 0; i < 20; i++) { advanceDay(s); n += s.party.filter((m) => m.status === 'sick').length; }
+      }
+      return n;
+    };
+    expect(sickDays('hard')).toBeGreaterThan(sickDays('easy'));
+  });
+
+  it('keeps the best five scores, highest first', () => {
+    const e = (score: number): ScoreEntry => ({ name: 'A', role: 'ranger', difficulty: 'normal', score, days: 30 });
+    let list: ScoreEntry[] = [];
+    for (const n of [300, 900, 100, 500, 700, 800]) list = addScore(list, e(n));
+    expect(list.map((x) => x.score)).toEqual([900, 800, 700, 500, 300]);
+  });
+
+  it('drops stored score rows with the wrong shape', () => {
+    localStorage.setItem('backcountry-road-scores-v1', JSON.stringify([
+      { name: 'Ok', role: 'farmer', difficulty: 'hard', score: 900, days: 40 },
+      { name: 'Bad', role: 'farmer', difficulty: 'hard', score: 800, days: '<img src=x onerror=alert(1)>' },
+      null,
+    ]));
+    expect(loadScores().map((e) => e.name)).toEqual(['Ok']);
+  });
+});
+
+import { answerQuiz, makeQuiz } from '../src/game/quiz';
+
+describe('reckoning problems at landmarks', () => {
+  it('arriving at a landmark sets a problem whose answer matches its working', () => {
+    const s = newGame('merchant', NAMES, 4);
+    s.supplies.food = 2000;
+    while (s.at === 0) advanceDay(s);
+    expect(s.quiz?.at).toBe(1);
+    expect(s.quiz!.why).toContain(String(s.quiz!.answer));
+  });
+
+  it('every kind of problem is answerable, and a right answer pays once', () => {
+    const kinds = new Set<string>();
+    for (let seed = 1; seed <= 60; seed++) {
+      const s = newGame('farmer', NAMES, seed);
+      s.at = 1 + (seed % 8);
+      s.miles = 120;
+      s.quiz = makeQuiz(s);
+      kinds.add(s.quiz.q.split(' ').slice(0, 3).join(' '));
+      expect(Number.isInteger(s.quiz.answer) && s.quiz.answer >= 0).toBe(true);
+      const money = s.supplies.money;
+      answerQuiz(s, s.quiz.answer);
+      answerQuiz(s, s.quiz.answer);
+      expect(s.supplies.money).toBe(money + 3);
+    }
+    expect(kinds.size).toBeGreaterThanOrEqual(4);
+  });
+
+  it('a wrong answer costs nothing and cannot be retried', () => {
+    const s = newGame('farmer', NAMES, 1);
+    s.at = 2;
+    s.quiz = makeQuiz(s);
+    answerQuiz(s, s.quiz.answer + 1);
+    answerQuiz(s, s.quiz.answer);
+    expect(s.quiz.result).toBe('wrong');
+    expect(s.supplies.money).toBe(180);
+  });
+
+  it('does not touch the game dice', () => {
+    const a = newGame('farmer', NAMES, 9), b = newGame('farmer', NAMES, 9);
+    makeQuiz(b);
+    expect(b.rng).toBe(a.rng);
   });
 });

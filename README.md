@@ -4,7 +4,7 @@ A survival-journey game from Charleston to Fort Prince George, South Carolina, 1
 
 - `npm install`, then `npm run dev` to play locally
 - `npm test` runs the game-logic tests (Vitest)
-- `npx vite-node scripts/balance.ts` plays thousands of scripted games and prints win rates per strategy and role
+- `npx vite-node scripts/balance.ts` plays thousands of scripted games and prints win rates per strategy, role and difficulty
 - `npm run build` writes a static site to `dist/` (relative paths, works under any sub-path)
 
 **Deploy:** push to `main` on GitHub, and set *Settings → Pages → Source* to **GitHub Actions**. The workflow in `.github/workflows/deploy.yml` tests, builds and publishes the site.

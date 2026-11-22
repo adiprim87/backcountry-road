@@ -1,6 +1,6 @@
 // Balance check: plays thousands of games with simple scripted strategies.
 // Run: npx vite-node scripts/balance.ts [gamesPerCell]
-import { alive, newGame, ROLES, score, type GameState, type Pace, type Rations, type Role } from '../src/game/state';
+import { alive, DIFFICULTY, newGame, ROLES, score, type Difficulty, type GameState, type Pace, type Rations, type Role } from '../src/game/state';
 import { advanceDay, carryLimit, finishHunt, foodDays, treatSick } from '../src/game/tick';
 import { currentEvent, resolveEvent } from '../src/game/events';
 import { canCross, cross, depth, risk, waitRiver } from '../src/game/river';
@@ -49,8 +49,8 @@ function simulateHunt(s: GameState, rng: () => number) {
   finishHunt(s, Math.min(meat, carryLimit(s)), shots);
 }
 
-function play(role: Role, st: Strategy, seed: number) {
-  const s = newGame(role, NAMES, seed);
+function play(role: Role, st: Strategy, seed: number, difficulty: Difficulty = 'normal') {
+  const s = newGame(role, NAMES, seed, difficulty);
   let r = seed * 7919 + 1;
   const rng = () => ((r = (r * 1103515245 + 12345) % 2147483648) / 2147483648);
   for (const [k, v] of Object.entries(st.kit)) buyUpTo(s, k as ItemKey, v!);
@@ -118,3 +118,14 @@ for (const item of ['rifle', 'horses', 'deed', 'scout'] as const) {
   console.log(`${item.padEnd(8)} ${stats(runs.filter((s) => s.owned.includes(item)))} | ${stats(runs.filter((s) => !s.owned.includes(item)))}`);
 }
 
+
+// Each difficulty, all roles pooled.
+console.log('\nDifficulty (all roles): win rate by strategy');
+console.log(`level   ${Object.keys(STRATEGIES).map((k) => k.padStart(8)).join('')}`);
+for (const d of Object.keys(DIFFICULTY) as Difficulty[]) {
+  const cells = Object.values(STRATEGIES).map((st) => {
+    const xs = (Object.keys(ROLES) as Role[]).flatMap((role) => Array.from({ length: N }, (_, i) => play(role, st, i + 1, d)));
+    return `${Math.round((xs.filter((s) => s.result === 'won').length / xs.length) * 100)}%`.padStart(8);
+  });
+  console.log(`${d.padEnd(7)} ${cells.join('')}`);
+}

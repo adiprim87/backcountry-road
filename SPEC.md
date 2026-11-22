@@ -31,6 +31,10 @@ An original survival-journey game in the wagon-trail genre, set on the South Car
 - **Party**: a leader plus 4 named companions. Each has health from 0 to 100 and a status of well, sick, injured or dead.
 - **Supplies**: food (lbs), powder and shot (shots), spare wheels, axles and tongues, medicine (doses), river gear (rope and caulking), and money (£).
 - Prices go up the farther inland you buy.
+- **Difficulty**:
+  - Easy: 130% starting money, 80% as many events, half the sickness.
+  - Normal: as described in this spec.
+  - Hard: 80% starting money, 120% as many events, 2.5× the sickness.
 
 ## Daily loop
 - **Pace**:
@@ -89,12 +93,16 @@ Most events offer a choice with a trade-off, for example "use medicine or press 
   - Decline politely.
 - Standing runs from −3 (wary) to +3 (trusted) and moves prices from about 130% down to about 55%. Each group's greeting tells you where you stand, and the ledger lists your relations.
 - Helping settlers, selling medicine to a sick traveler, and paying the Cherokee guide also raise standing.
-- Once your standing with the Catawba or Cherokee reaches 2 (friendly), a hunter may offer to guide you to the fort. Every river crossing is then half as risky.
+- Once your standing with the Catawba or Cherokee is friendly (1 or more), a hunter may offer to guide you to the fort. The offer stops once the last river is behind you. Every river crossing is then half as risky.
 
 ## Rare big purchases (randomized price, offered once)
 - Long rifle (£55–85): bigger hit area in hunts, and the creek buck almost never escapes.
 - Horse team (£70–105): +4 miles a day at any travel pace.
 - Land warrant for 200 acres on Long Canes Creek (£90–135): +500 score if you arrive. You'll be poorer for the rest of the trip.
+
+## Reckoning problems
+- Each landmark and river shows one optional word problem built from your real situation: how many days your food lasts, days left to the fort, the cost of several wheels, shillings in a pound, or money left after buying food.
+- A right answer earns £3 and some morale. A wrong answer shows the working and costs nothing. You get one try per landmark.
 
 ## Rivers
 - Each crossing has a depth and current, which rise with recent rain.
@@ -108,7 +116,8 @@ Most events offer a choice with a trade-off, for example "use medicine or press 
 ## Hunting
 - A 30-second Phaser scene with deer, turkey, rabbits and wild boar moving through the pines.
 - Click or tap to shoot. Each shot uses one powder and shot.
-- You can carry back at most 100 lbs of meat.
+- You can carry back 100 lb of meat, plus 100 lb per pack horse. The hunt ends on its own once you hit that limit.
+- Each shot and hit makes a short sound.
 
 ## Ending
 - **Win**: reach Fort Prince George with at least one member alive.
@@ -122,6 +131,11 @@ Most events offer a choice with a trade-off, for example "use medicine or press 
 - The game autosaves to `localStorage` at the end of each day.
 - The title screen offers Continue (if there's a save) or New Game.
 - Storage errors are caught and ignored, so the game still works in private browsing.
+- The 5 best winning runs (leader, role, difficulty, days, score) are kept in `localStorage`. They show on the title screen and the end screen, with the new run highlighted.
+
+## Sound
+- Short WebAudio beeps, no audio files: shots and hits in the hunt, a chime when an event starts, a low note when someone dies, and a tune for winning or losing.
+- A Sound on/off button sits on the title screen and the road screen. The browser remembers the choice.
 
 ## Tone & history
 - The look is a green-on-black terminal ledger with monospace type and light scanlines.
@@ -130,7 +144,6 @@ Most events offer a choice with a trade-off, for example "use medicine or press 
 - Names, dates and distances are approximate, and a notes line in the game says so.
 
 ## Out of scope (for now)
-- Sound and music.
-- A high-score table beyond the current run.
+- Music.
+- Online or shared high scores.
 - Multiple routes.
-- Difficulty settings.
