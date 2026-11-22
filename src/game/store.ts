@@ -11,6 +11,7 @@ export const ITEMS: { key: ItemKey; label: string; qty: number; price: number }[
   { key: 'tongues', label: 'Spare tongue', qty: 1, price: 8 },
   { key: 'medicine', label: 'Medicine, 1 dose', qty: 1, price: 3 },
   { key: 'riverGear', label: 'Rope & caulking', qty: 1, price: 5 },
+  { key: 'packHorses', label: 'Pack horse (+100 lb from hunts)', qty: 1, price: 15 },
 ];
 
 // Goods cost up to double by the time you reach the frontier.

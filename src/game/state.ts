@@ -19,6 +19,7 @@ export interface Supplies {
   tongues: number;
   medicine: number;
   riverGear: number;
+  packHorses: number; // each carries 100 lb more home from a hunt
   money: number; // whole pounds sterling
 }
 
@@ -69,7 +70,7 @@ export function newGame(role: Role, names: string[], seed = Date.now()): GameSta
     morale: 80,
     weather: 'fair',
     party: names.map((name) => ({ name, health: 100, status: 'well' })),
-    supplies: { food: 0, shot: 0, wheels: 0, axles: 0, tongues: 0, medicine: 0, riverGear: 0, money: ROLES[role].money },
+    supplies: { food: 0, shot: 0, wheels: 0, axles: 0, tongues: 0, medicine: 0, riverGear: 0, packHorses: 0, money: ROLES[role].money },
     phase: 'store',
     rain: 0,
     seen: [],

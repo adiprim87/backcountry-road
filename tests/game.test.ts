@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { alive, newGame, type GameState } from '../src/game/state';
-import { advanceDay } from '../src/game/tick';
+import { advanceDay, finishHunt } from '../src/game/tick';
 import { buy, unitPrice } from '../src/game/store';
 import { TOTAL_MILES } from '../src/game/route';
 
@@ -122,6 +122,21 @@ describe('events', () => {
     expect(s.phase).toBe('travel');
   });
 
+  it('each pack horse carries 100 lb more', () => {
+    const s = newGame('merchant', NAMES, 3);
+    expect(buy(s, 'packHorses')).toBe(true);
+    s.supplies.food = 0; s.supplies.shot = 20;
+    finishHunt(s, 250, 10);
+    expect(s.supplies.food).toBe(200 - 15);
+  });
+
+  it('old saves without pack horses still load', () => {
+    const s = newGame('farmer', NAMES, 1) as any;
+    delete s.supplies.packHorses;
+    localStorage.setItem('backcountry-road-save-v1', JSON.stringify(s));
+    expect(load()!.supplies.packHorses).toBe(0);
+  });
+
   it('abandoning the wagon loses the game', () => {
     const s = broken();
     resolveEvent(s, 2);
@@ -185,5 +200,28 @@ describe('save', () => {
     expect(load()).toBeNull();
     localStorage.setItem('backcountry-road-save-v1', 'not json');
     expect(load()).toBeNull();
+  });
+});
+
+
+describe('hunt payout and river stops', () => {
+  it('caps meat at 100 lb, spends the shots and takes a day', () => {
+    const s = newGame('ranger', NAMES, 3);
+    Object.assign(s.supplies, { food: 50, shot: 20 });
+    s.phase = 'hunt';
+    finishHunt(s, 150, 7);
+    expect(s.supplies.food).toBe(50 + 100 - 15); // a day's filling rations for 5
+    expect(s.supplies.shot).toBe(13);
+    expect(s.day).toBe(1);
+    expect(s.phase).toBe('travel');
+  });
+
+  it('travel stops at a river and shows the crossing', () => {
+    const s = newGame('merchant', NAMES, 3);
+    s.supplies.food = 300;
+    s.at = 1; s.miles = 54; // a mile short of the Edisto
+    advanceDay(s);
+    expect(s.miles).toBe(55);
+    expect(s.phase).toBe('river');
   });
 });

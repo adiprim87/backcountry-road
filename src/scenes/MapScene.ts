@@ -10,7 +10,7 @@ const PTS: [number, number][] = [
 ];
 const FG = 0x7dff8a, DIM = 0x3f8a47, WATER = 0x4fa3c7;
 
-export function pointAt(miles: number): [number, number] {
+function pointAt(miles: number): [number, number] {
   let i = 0;
   while (i < ROUTE.length - 2 && miles > ROUTE[i + 1].mile) i++;
   const t = Math.min(1, (miles - ROUTE[i].mile) / (ROUTE[i + 1].mile - ROUTE[i].mile));

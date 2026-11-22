@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 
 const FONT = '"Courier New", Courier, monospace';
 
-export interface HuntOpts { shots: number; ranger: boolean }
+export interface HuntOpts { shots: number; ranger: boolean; carry: number }
 export type HuntDone = (meat: number, used: number) => void;
 
 const W = 800, H = 450, SECONDS = 30;
@@ -86,11 +86,11 @@ export class HuntScene extends Phaser.Scene {
       this.animals = this.animals.filter((a) => a !== hit);
     }
     this.updateHud();
-    if (this.used >= this.opts.shots) this.finish();
+    if (this.used >= this.opts.shots || this.meat >= this.opts.carry) this.finish();
   }
 
   private updateHud() {
-    this.hud.setText(`TIME ${Math.max(0, this.left)}   SHOTS ${this.opts.shots - this.used}   MEAT ${this.meat} lb`);
+    this.hud.setText(`TIME ${Math.max(0, this.left)}   SHOTS ${this.opts.shots - this.used}   MEAT ${this.meat}/${this.opts.carry} lb`);
   }
 
   private finish() {
@@ -98,7 +98,7 @@ export class HuntScene extends Phaser.Scene {
     this.over = true;
     this.time.removeAllEvents();
     this.updateHud();
-    const extra = this.meat > 100 ? `\nYou can carry back only 100 lb.` : '';
+    const extra = this.meat >= this.opts.carry ? `\nThat's all you can carry (${this.opts.carry} lb).` : '';
     this.add.rectangle(W / 2, H / 2, 520, 130, 0x0b0f0a, 0.9).setStrokeStyle(2, 0x7dff8a);
     this.add.text(W / 2, H / 2, `The hunt is over.\nYou shot ${this.meat} lb of game.${extra}\n\nClick or tap to return.`,
       { fontFamily: FONT, fontSize: '18px', color: '#7dff8a', align: 'center' }).setOrigin(0.5);

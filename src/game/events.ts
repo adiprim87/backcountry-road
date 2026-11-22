@@ -9,7 +9,7 @@ interface Choice {
   apply: (s: GameState, p: Pending, who: Member) => string;
 }
 
-export interface GameEvent {
+interface GameEvent {
   id: string;
   once?: boolean;
   weight: (s: GameState) => number;

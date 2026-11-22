@@ -1,8 +1,7 @@
 import { alive, newGame, ROLES, score, type GameState, type Pace, type Rations, type Role } from '../game/state';
-import { advanceDay, dateText, finishHunt } from '../game/tick';
+import { advanceDay, carryLimit, dateText, finishHunt } from '../game/tick';
 import { currentEvent, resolveEvent } from '../game/events';
 import { canCross, cross, depth, risk, waitRiver, type Method } from '../game/river';
-import { hideCanvas, showMap, startHunt } from '../scenes';
 import { clearSave, load, save } from '../game/save';
 import { ROUTE, TOTAL_MILES } from '../game/route';
 import { buy, ITEMS, unitPrice, type ItemKey } from '../game/store';
@@ -12,6 +11,7 @@ const DEFAULT_NAMES = ['Thomas', 'Mary', 'Johann', 'Sarah', 'Elias'];
 let s: GameState | null = null;
 let view: 'title' | 'outfit' = 'title';
 let root: HTMLElement;
+let scenesLoaded = false;
 
 const esc = (t: string) => t.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 const btn = (act: string, label: string, arg = '', disabled = false) =>
@@ -38,7 +38,7 @@ function outfit() {
     `<label class="row">${i === 0 ? 'Leader' : `Companion ${i}`} <input name="member" value="${n}" maxlength="16" required></label>`).join('');
   return `<h2>Outfitting</h2>
   <p>${ROUTE[0].text}</p>
-  <form data-form="start"><fieldset><legend>Who are you?</legend>${roles}</fieldset>
+  <form><fieldset><legend>Who are you?</legend>${roles}</fieldset>
   <fieldset><legend>Your party</legend>${names}</fieldset>
   <button type="submit">Go to the store</button></form>`;
 }
@@ -111,7 +111,7 @@ function river(g: GameState) {
 
 function hunt(g: GameState) {
   return `<h2>Hunting</h2><p>Click or tap game to shoot. Each shot uses one round (${g.supplies.shot} on hand).
-  You can carry back 100 lb.</p>`;
+  You can carry back ${carryLimit(g)} lb. Buy pack horses at a store to carry more.</p>`;
 }
 
 function landmark(g: GameState) {
@@ -137,9 +137,19 @@ function render() {
   else root.innerHTML = { store, travel, landmark, end, event, river, hunt }[s.phase](s);
   if (s?.phase === 'end') clearSave();
   else if (s && s.phase !== 'hunt') save(s);
-  if (!s || s.phase === 'store' || s.phase === 'end') hideCanvas();
-  else if (s.phase !== 'hunt') showMap(s.miles);
+  syncCanvas();
   root.querySelector<HTMLElement>('button:not([disabled]), input')?.focus({ preventScroll: true });
+}
+
+// Phaser (~1.2 MB) loads only once a game starts; the title screen doesn't need it.
+function syncCanvas() {
+  if (!s && !scenesLoaded) return;
+  import('../scenes').then((m) => {
+    scenesLoaded = true;
+    // Decide from the state at load time, not when the import was requested.
+    if (!s || s.phase === 'store' || s.phase === 'end') m.hideCanvas();
+    else if (s.phase !== 'hunt') m.showMap(s.miles);
+  });
 }
 
 function act(name: string, arg: string) {
@@ -157,10 +167,10 @@ function act(name: string, arg: string) {
     else if (name === 'hunt') {
       const g = s;
       g.phase = 'hunt';
-      startHunt({ shots: g.supplies.shot, ranger: g.role === 'ranger' }, (meat, used) => {
+      import('../scenes').then((m) => m.startHunt({ shots: g.supplies.shot, ranger: g.role === 'ranger', carry: carryLimit(g) }, (meat, used) => {
         finishHunt(g, meat, used);
         render();
-      });
+      }));
     }
   }
   render();
@@ -176,7 +186,10 @@ export function mount(el: HTMLElement) {
     const t = e.target as HTMLSelectElement;
     if (s && t.name === 'pace') s.pace = t.value as Pace;
     if (s && t.name === 'rations') s.rations = t.value as Rations;
-    if (s && (t.name === 'pace' || t.name === 'rations')) render();
+    if (s && (t.name === 'pace' || t.name === 'rations')) {
+      render();
+      root.querySelector<HTMLElement>(`[name=${t.name}]`)?.focus(); // keep keyboard users in the select
+    }
   });
   el.addEventListener('submit', (e) => {
     e.preventDefault();

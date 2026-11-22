@@ -24,7 +24,7 @@ const WEATHER: { id: Weather; w: number; miles: number; health: number; rain: nu
   { id: 'fog', w: 1, miles: 0.8, health: 0, rain: 0 },
 ];
 
-export const EVENT_CHANCE = 0.3;
+const EVENT_CHANCE = 0.3;
 
 /** Advance one day. With travel=false the party stays put (waiting, hunting). Mutates s. */
 export function advanceDay(s: GameState, travel = true) {
@@ -81,9 +81,11 @@ export function restDay(s: GameState) {
   s.pace = pace;
 }
 
+export const carryLimit = (s: GameState) => 100 + 100 * s.supplies.packHorses;
+
 export function finishHunt(s: GameState, meat: number, used: number) {
   s.supplies.shot = Math.max(0, s.supplies.shot - used);
-  const kept = Math.min(meat, 100);
+  const kept = Math.min(meat, carryLimit(s));
   s.supplies.food += kept;
   s.phase = 'travel';
   advanceDay(s, false);
