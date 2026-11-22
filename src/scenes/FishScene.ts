@@ -42,9 +42,16 @@ export class FishScene extends Phaser.Scene {
     this.float = this.add.circle(400, WATER_Y, 18, 0xd94a3a).setStrokeStyle(3, 0xf0f0f0);
     this.tweens.add({ targets: this.float, y: WATER_Y + 3, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
     this.hud = this.add.text(12, 10, '', { fontFamily: FONT, fontSize: '26px', color: '#7dff8a' });
-    this.msg = this.add.text(W / 2, 70, 'Tap when the float dips under.', { fontFamily: FONT, fontSize: '32px', color: '#7dff8a' }).setOrigin(0.5);
+    this.msg = this.add.text(W / 2, 70, 'Tap or press Space when the float dips.', { fontFamily: FONT, fontSize: '32px', color: '#7dff8a' }).setOrigin(0.5);
     this.time.addEvent({ delay: 1000, repeat: SECONDS - 1, callback: () => { if (--this.left <= 0) this.finish(); this.updateHud(); } });
     this.input.on('pointerdown', () => this.tap());
+    // Space strikes; leaving uses keyup so the release can't also click the next screen's button.
+    const kb = this.input.keyboard!;
+    kb.addCapture('SPACE,ENTER');
+    kb.on('keydown-SPACE', () => !this.over && this.tap());
+    kb.on('keyup-SPACE', () => this.over && this.tap());
+    kb.on('keyup-ENTER', () => this.over && this.tap());
+    this.events.once('shutdown', () => kb.clearCaptures()); // give Space back to the page
     this.waitForBite(1500);
     this.updateHud();
   }
@@ -90,7 +97,7 @@ export class FishScene extends Phaser.Scene {
     this.over = true;
     this.time.removeAllEvents();
     this.add.rectangle(W / 2, H / 2, 520, 130, 0x0b0f0a, 0.9).setStrokeStyle(2, 0x7dff8a);
-    this.add.text(W / 2, H / 2, `Time to move on.\nYou caught ${this.lb} lb of fish.\n\nClick or tap to return.`,
+    this.add.text(W / 2, H / 2, `Time to move on.\nYou caught ${this.lb} lb of fish.\n\nClick, tap or press Enter to return.`,
       { fontFamily: FONT, fontSize: '18px', color: '#7dff8a', align: 'center' }).setOrigin(0.5);
     this.time.delayedCall(400, () => (this.canLeave = true));
   }

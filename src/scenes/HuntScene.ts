@@ -3,7 +3,7 @@ import { sfx } from '../sound';
 
 const FONT = '"Courier New", Courier, monospace';
 
-export interface HuntOpts { shots: number; ranger: boolean; rifle: boolean; carry: number }
+export interface HuntOpts { shots: number; ranger: boolean; rifle: boolean; carry: number; meat: number /* lb multiplier (difficulty) */ }
 export type HuntDone = (meat: number, used: number) => void;
 
 const W = 800, H = 450, SECONDS = 30;
@@ -26,6 +26,8 @@ export class HuntScene extends Phaser.Scene {
   private over = false;
   private canLeave = false;
   private hud!: Phaser.GameObjects.Text;
+  private aim!: Phaser.GameObjects.Graphics; // keyboard crosshair, shown once a key is used
+  private keys!: Phaser.Types.Input.Keyboard.CursorKeys;
 
   constructor() { super('hunt'); }
 
@@ -46,6 +48,17 @@ export class HuntScene extends Phaser.Scene {
     this.time.addEvent({ delay: 900, loop: true, callback: () => this.spawn() });
     this.time.addEvent({ delay: 1000, repeat: SECONDS - 1, callback: () => { if (--this.left <= 0) this.finish(); } });
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => this.shoot(p.x, p.y));
+    // Keyboard: arrows aim, Space fires. Leaving uses keyup so the release can't also click the next screen's button.
+    this.aim = this.add.graphics({ x: W / 2, y: 300 }).lineStyle(2, 0xffffcc)
+      .strokeCircle(0, 0, 14).lineBetween(-22, 0, -6, 0).lineBetween(6, 0, 22, 0).lineBetween(0, -22, 0, -6).lineBetween(0, 6, 0, 22)
+      .setVisible(false).setDepth(5);
+    const kb = this.input.keyboard!;
+    this.keys = kb.createCursorKeys();
+    kb.addCapture('ENTER');
+    kb.on('keydown-SPACE', () => { if (!this.over) { this.aim.setVisible(true); this.shoot(this.aim.x, this.aim.y); } });
+    kb.on('keyup-SPACE', () => this.over && this.shoot(0, 0));
+    kb.on('keyup-ENTER', () => this.over && this.shoot(0, 0));
+    this.events.once('shutdown', () => kb.clearCaptures()); // give Space and arrows back to the page
     this.updateHud();
   }
 
@@ -61,6 +74,12 @@ export class HuntScene extends Phaser.Scene {
 
   update(_: number, dt: number) {
     for (const a of this.animals) a.obj.x += (a.vx * dt) / 1000;
+    const k = this.keys, step = (420 * dt) / 1000;
+    const dx = (k.right.isDown ? 1 : 0) - (k.left.isDown ? 1 : 0), dy = (k.down.isDown ? 1 : 0) - (k.up.isDown ? 1 : 0);
+    if (dx || dy) {
+      this.aim.setVisible(true);
+      this.aim.setPosition(Phaser.Math.Clamp(this.aim.x + dx * step, 0, W), Phaser.Math.Clamp(this.aim.y + dy * step, 40, H));
+    }
     this.animals = this.animals.filter((a) => {
       const gone = a.obj.x < -40 || a.obj.x > W + 40;
       if (gone) a.obj.destroy();
@@ -82,8 +101,9 @@ export class HuntScene extends Phaser.Scene {
     const hit = this.animals.find((a) => Phaser.Math.Distance.Between(x, y, a.obj.x, a.obj.y) < a.r * reach);
     if (hit) {
       sfx.hit();
-      this.meat += hit.lb;
-      const label = this.add.text(hit.obj.x, hit.obj.y - 20, `+${hit.lb} lb`, { fontFamily: FONT, fontSize: '16px', color: '#ffffcc' }).setOrigin(0.5);
+      const lb = Math.max(1, Math.round(hit.lb * this.opts.meat));
+      this.meat += lb;
+      const label = this.add.text(hit.obj.x, hit.obj.y - 20, `+${lb} lb`, { fontFamily: FONT, fontSize: '16px', color: '#ffffcc' }).setOrigin(0.5);
       this.tweens.add({ targets: label, y: label.y - 30, alpha: 0, duration: 800, onComplete: () => label.destroy() });
       hit.obj.destroy();
       this.animals = this.animals.filter((a) => a !== hit);
@@ -103,7 +123,7 @@ export class HuntScene extends Phaser.Scene {
     this.updateHud();
     const extra = this.meat >= this.opts.carry ? `\nThat's all you can carry (${this.opts.carry} lb).` : '';
     this.add.rectangle(W / 2, H / 2, 520, 130, 0x0b0f0a, 0.9).setStrokeStyle(2, 0x7dff8a);
-    this.add.text(W / 2, H / 2, `The hunt is over.\nYou shot ${this.meat} lb of game.${extra}\n\nClick or tap to return.`,
+    this.add.text(W / 2, H / 2, `The hunt is over.\nYou shot ${this.meat} lb of game.${extra}\n\nClick, tap or press Enter to return.`,
       { fontFamily: FONT, fontSize: '18px', color: '#7dff8a', align: 'center' }).setOrigin(0.5);
     // Ignore the click that ended the hunt, so the summary is readable.
     this.time.delayedCall(400, () => (this.canLeave = true));

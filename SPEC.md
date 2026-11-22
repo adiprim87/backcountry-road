@@ -34,7 +34,7 @@ An original survival-journey game in the wagon-trail genre, set on the South Car
 - **Difficulty**:
   - Easy: 130% starting money, 80% as many events, half the sickness.
   - Normal: as described in this spec.
-  - Hard: 80% starting money, 120% as many events, 2.5× the sickness.
+  - Hard: 80% starting money, 120% as many events, 2.5× the sickness, and each animal hunted gives 80% of the meat.
 
 ## Daily loop
 - **Pace**:
@@ -115,13 +115,13 @@ Most events offer a choice with a trade-off, for example "use medicine or press 
 
 ## Hunting
 - A 30-second Phaser scene with deer, turkey, rabbits and wild boar moving through the pines.
-- Click or tap to shoot. Each shot uses one powder and shot.
+- Click or tap to shoot, or aim a crosshair with the arrow keys and press Space. Each shot uses one powder and shot.
 - You can carry back 100 lb of meat, plus 100 lb per pack horse. The hunt ends on its own once you hit that limit.
 - Each shot and hit makes a short sound.
 
 ## Fishing
 - At each river, before crossing, you may fish once. It's free: no shot, no gear, and no day spent.
-- A 20-second timing game: when the float dips, tap within about ¾ of a second to land the fish. Tapping too early scares the fish off for a moment.
+- A 20-second timing game: when the float dips, tap or press Space within about ¾ of a second to land the fish. Tapping too early scares the fish off for a moment.
 - Catches: bream 1 lb, shad 3 lb, catfish 6 lb, and a rare 20 lb sturgeon. A good session brings in about 10–20 lb, a bonus rather than a way to live.
 
 ## Ending
@@ -131,6 +131,11 @@ Most events offer a choice with a trade-off, for example "use medicine or press 
   - Everyone has died.
   - Or the wagon is broken with no spare part, no money, and no store nearby.
 - The end screen shows a run summary (days, miles, deaths with their causes, score) and a Play Again button.
+- **Share your run** opens the phone's share sheet, or copies a one-line summary and the game link to the clipboard.
+
+## Journal
+- Every line the game writes is kept in a journal, grouped by date. The road screen shows only the last 8.
+- Open it from the road screen or the end screen to see how the trip went.
 
 ## Saving
 - The game autosaves to `localStorage` at the end of each day.

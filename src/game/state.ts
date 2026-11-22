@@ -1,4 +1,5 @@
 import type { Quiz } from './quiz';
+import { TOTAL_MILES } from './route';
 
 export type Role = 'merchant' | 'farmer' | 'ranger';
 export type Pace = 'rest' | 'steady' | 'strenuous' | 'grueling';
@@ -71,7 +72,8 @@ export interface GameState {
   owned: Owned[];
   fishedAt?: number; // ROUTE index of the river last fished (once per river)
   quiz?: Quiz; // the reckoning problem at the current landmark
-  log: string[];
+  log: string[]; // the last few lines, shown on screen
+  journal: { day: number; text: string }[]; // everything, for the journal page
   result?: 'won' | 'lost';
   endReason?: string;
 }
@@ -82,11 +84,11 @@ export const ROLES: Record<Role, { label: string; money: number; perk: string }>
   ranger: { label: 'Ranger', money: 150, perk: 'A better shot when hunting.' },
 };
 
-/** money: starting purse; events: daily event chance; flux: daily sickness chance. All multipliers. */
-export const DIFFICULTY: Record<Difficulty, { label: string; money: number; events: number; flux: number }> = {
-  easy: { label: 'Easy', money: 1.3, events: 0.8, flux: 0.5 },
-  normal: { label: 'Normal', money: 1, events: 1, flux: 1 },
-  hard: { label: 'Hard', money: 0.8, events: 1.2, flux: 2.5 },
+/** Multipliers. money: starting purse; events: daily event chance; flux: daily sickness chance; meat: lb per animal hunted. */
+export const DIFFICULTY: Record<Difficulty, { label: string; money: number; events: number; flux: number; meat: number }> = {
+  easy: { label: 'Easy', money: 1.3, events: 0.8, flux: 0.5, meat: 1 },
+  normal: { label: 'Normal', money: 1, events: 1, flux: 1, meat: 1 },
+  hard: { label: 'Hard', money: 0.8, events: 1.2, flux: 2.5, meat: 0.8 },
 };
 
 export function newGame(role: Role, names: string[], seed = Date.now(), difficulty: Difficulty = 'normal'): GameState {
@@ -109,6 +111,7 @@ export function newGame(role: Role, names: string[], seed = Date.now(), difficul
     rep: { catawba: 0, cherokee: 0, settlers: 0, traders: 0 },
     owned: [],
     log: [],
+    journal: [],
   };
 }
 
@@ -123,7 +126,9 @@ export function score(s: GameState): number {
 export const clamp = (n: number, max = 100) => Math.max(0, Math.min(max, Math.round(n)));
 
 export function note(s: GameState, msg: string) {
-  if (msg) s.log = [msg, ...s.log].slice(0, 8);
+  if (!msg) return;
+  s.log = [msg, ...s.log].slice(0, 8);
+  s.journal.push({ day: s.day, text: msg });
 }
 
 export function damage(s: GameState, m: Member, n: number, cause: string) {
@@ -145,4 +150,12 @@ export function checkEnd(s: GameState): boolean {
   }
   if (s.result) s.phase = 'end';
   return !!s.result;
+}
+
+/** One line for sharing a finished run. */
+export function runSummary(s: GameState): string {
+  const level = DIFFICULTY[s.difficulty].label;
+  return s.result === 'won'
+    ? `Backcountry Road: reached Fort Prince George in ${s.day} days with ${alive(s).length} of ${s.party.length} alive (${level}). Score ${score(s)}.`
+    : `Backcountry Road: my party's journey ended at mile ${s.miles} of ${TOTAL_MILES} after ${s.day} days (${level}).`;
 }

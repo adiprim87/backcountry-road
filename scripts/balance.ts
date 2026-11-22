@@ -45,7 +45,7 @@ function foodForNextLeg(s: GameState, st: Strategy) {
 // A human hunter's haul: mostly 30-120 lb; rangers and the long rifle do better.
 function simulateHunt(s: GameState, rng: () => number) {
   const shots = Math.min(s.supplies.shot, 12);
-  const meat = Math.round((20 + rng() * 100) * (s.role === 'ranger' ? 1.3 : 1) * (s.owned.includes('rifle') ? 1.4 : 1) * (shots / 12));
+  const meat = Math.round((20 + rng() * 100) * (s.role === 'ranger' ? 1.3 : 1) * (s.owned.includes('rifle') ? 1.4 : 1) * (shots / 12) * DIFFICULTY[s.difficulty].meat);
   finishHunt(s, Math.min(meat, carryLimit(s)), shots);
 }
 

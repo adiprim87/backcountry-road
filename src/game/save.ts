@@ -17,6 +17,7 @@ export function load(): GameState | null {
     s.rep ??= { catawba: 0, cherokee: 0, settlers: 0, traders: 0 };
     s.owned ??= [];
     s.difficulty ??= 'normal';
+    s.journal ??= [];
     if (s.phase === 'hunt') s.phase = 'travel'; // a hunt in progress can't be resumed
     if (s.phase === 'fish') s.phase = 'river'; // nor can fishing; the river is still there
     repairPending(s);

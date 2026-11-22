@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { alive, newGame, score, type GameState } from '../src/game/state';
+import { alive, newGame, runSummary, score, type GameState } from '../src/game/state';
 import { advanceDay, finishHunt, treatSick } from '../src/game/tick';
 import { buy, unitPrice } from '../src/game/store';
 import { TOTAL_MILES } from '../src/game/route';
@@ -451,5 +451,28 @@ describe('fishing', () => {
     s.at = 2; s.phase = 'fish';
     save(s);
     expect(load()!.phase).toBe('river');
+  });
+});
+
+describe('journal and sharing', () => {
+  it('the journal keeps every note with its day, while the on-screen log keeps 8', () => {
+    const s = newGame('merchant', NAMES, 2);
+    s.supplies.food = 2000;
+    run(s);
+    expect(s.log.length).toBeLessThanOrEqual(8);
+    expect(s.journal.length).toBeGreaterThan(s.log.length);
+    expect(s.journal[s.journal.length - 1]).toEqual({ day: s.day, text: s.log[0] });
+    expect(s.journal.map((e) => e.day)).toEqual([...s.journal.map((e) => e.day)].sort((a, b) => a - b));
+  });
+
+  it('summarizes wins and losses', () => {
+    const s = newGame('farmer', NAMES, 2, 'hard');
+    s.supplies.food = 2000;
+    run(s);
+    expect(runSummary(s)).toMatch(new RegExp(`in ${s.day} days with \\d of 5 alive \\(Hard\\)\\. Score ${score(s)}`));
+    const lost = newGame('farmer', NAMES, 3);
+    lost.supplies.food = 7; lost.pace = 'rest';
+    run(lost);
+    expect(runSummary(lost)).toMatch(/ended at mile 0 of 300 after \d+ days \(Normal\)/);
   });
 });

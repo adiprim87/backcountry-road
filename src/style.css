@@ -78,3 +78,6 @@ td button::before { content: ''; }
   .store td:last-child { grid-column: 2; grid-row: 2 / 4; align-self: center; }
 }
 .scores .mine td { color: var(--bg); background: var(--fg); text-shadow: none; }
+.journal h3 { font-weight: normal; color: var(--dim); margin: 12px 0 0; }
+.journal ul { margin: 0; padding-left: 0; list-style: none; }
+.journal li::before { content: '- '; color: var(--dim); }

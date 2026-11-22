@@ -1,4 +1,4 @@
-import { alive, DIFFICULTY, newGame, ROLES, score, type Difficulty, type GameState, type Group, type Pace, type Rations, type Role } from '../game/state';
+import { alive, DIFFICULTY, newGame, ROLES, runSummary, score, type Difficulty, type GameState, type Group, type Pace, type Rations, type Role } from '../game/state';
 import { advanceDay, carryLimit, dateText, finishHunt, foodDays, treatSick } from '../game/tick';
 import { currentEvent, GROUP_NAME, mood, OWNED_LABEL, resolveEvent } from '../game/events';
 import { canCross, canFish, cross, crossRisk, depth, finishFish, waitRiver, type Method } from '../game/river';
@@ -18,6 +18,8 @@ let scenesLoaded = false;
 // Remembered between renders: which run's score was recorded, and what changed since the last render (for sounds).
 let recorded: { run: GameState; entry: ScoreEntry; list: ScoreEntry[] } | null = null;
 let last = { run: null as GameState | null, phase: '', dead: 0 };
+let journalOpen = false;
+let shared = ''; // feedback after the Share button
 
 const esc = (t: string) => t.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 const btn = (act: string, label: string, arg = '', disabled = false) =>
@@ -112,7 +114,7 @@ function travel(g: GameState) {
   ${btn('hunt', 'Go hunting (a day)', '', g.supplies.shot === 0)}
   ${alive(g).some((m) => m.status !== 'well') ? btn('treat', `Treat the sick (${g.supplies.medicine} doses)`, '', g.supplies.medicine === 0) : ''}
   ${atStore ? btn('store', `Visit the ${here.name} store`) : ''}
-  ${soundBtn()}
+  ${btn('journal', 'Journal')} ${soundBtn()}
   ${log(g)}`;
 }
 
@@ -146,7 +148,7 @@ function river(g: GameState) {
 }
 
 function hunt(g: GameState) {
-  return `<h2>Hunting</h2><p>Click or tap game to shoot. Each shot uses one round (${g.supplies.shot} on hand).
+  return `<h2>Hunting</h2><p>Click or tap game to shoot, or aim with the arrow keys and press Space. Each shot uses one round (${g.supplies.shot} on hand).
   You can carry back ${carryLimit(g)} lb. Buy pack horses at a store to carry more.</p>`;
 }
 
@@ -162,7 +164,7 @@ function quiz(g: GameState) {
 }
 
 function fish(_: GameState) {
-  return `<h2>Fishing</h2><p>Watch the float. When it dips under, click or tap quickly to set the hook.
+  return `<h2>Fishing</h2><p>Watch the float. When it dips under, click, tap or press Space quickly to set the hook.
   Tap too early and you scare the fish off for a moment. No shot needed, and it costs no day.</p>`;
 }
 
@@ -184,7 +186,17 @@ function end(g: GameState) {
   ${g.result === 'won' && g.owned.includes('deed') ? '<p>Your land warrant for 200 acres on Long Canes Creek is good. You have a home on the frontier. (+500 score)</p>' : ''}
   ${dead.length ? `<p>Lost on the road:</p><ul>${dead.map((m) => `<li>${esc(m.name)}, ${m.cause}</li>`).join('')}</ul>` : ''}
   ${recorded?.run === g ? scores(recorded.list, recorded.entry) : ''}
-  ${btn('again', 'Play again')}`;
+  ${btn('share', 'Share your run')} ${btn('journal', 'Read your journal')} ${btn('again', 'Play again')}
+  ${shared ? `<p role="status">${esc(shared)}</p>` : ''}`;
+}
+
+/** The whole trip so far, oldest first, grouped by date. */
+function journal(g: GameState) {
+  const days = [...new Set(g.journal.map((e) => e.day))];
+  const body = days.map((d) => `<h3>${dateText(d)}</h3><ul>${g.journal.filter((e) => e.day === d).map((e) => `<li>${esc(e.text)}</li>`).join('')}</ul>`).join('');
+  return `<h2>Journal</h2>${btn('journal', 'Close the journal')}
+  <div class="journal">${body || '<p>Nothing written yet.</p>'}</div>
+  ${days.length > 3 ? btn('journal', 'Close the journal') : ''}`;
 }
 
 /** Once per finished run: put a win on the score table. */
@@ -209,6 +221,7 @@ function render() {
   if (s?.phase === 'end') recordEnd(s);
   playSounds();
   if (!s) root.innerHTML = view === 'title' ? title() : outfit();
+  else if (journalOpen) root.innerHTML = journal(s);
   else root.innerHTML = { store, travel, landmark, end, event, river, hunt, fish }[s.phase](s);
   if (s?.phase === 'end') clearSave();
   else if (s && s.phase !== 'hunt' && s.phase !== 'fish') save(s);
@@ -227,10 +240,25 @@ function syncCanvas() {
   });
 }
 
+/** Phone share sheet if there is one, else the clipboard, else show the text to copy by hand. */
+async function share(g: GameState) {
+  const text = runSummary(g), url = location.href.split(/[?#]/)[0];
+  try {
+    if (navigator.share) { await navigator.share({ text, url }); shared = ''; }
+    else { await navigator.clipboard.writeText(`${text} ${url}`); shared = 'Copied to the clipboard.'; }
+  } catch (e) {
+    // The user closing the share sheet is not an error worth showing.
+    shared = (e as Error)?.name === 'AbortError' ? '' : `Copy this: ${text} ${url}`;
+  }
+  render();
+}
+
 function act(name: string, arg: string) {
   if (name === 'outfit') view = 'outfit';
   else if (name === 'continue') s = load();
-  else if (name === 'again') { s = null; view = 'title'; }
+  else if (name === 'again') { s = null; view = 'title'; journalOpen = false; shared = ''; }
+  else if (name === 'journal') journalOpen = !journalOpen;
+  else if (name === 'share' && s) { share(s); return; }
   else if (name === 'sound') toggleMute();
   else if (s) {
     if (name === 'buy') { const [k, n] = arg.split(':'); buy(s, k as ItemKey, Number(n)); }
@@ -252,7 +280,7 @@ function act(name: string, arg: string) {
     else if (name === 'hunt') {
       const g = s;
       g.phase = 'hunt';
-      import('../scenes').then((m) => m.startHunt({ shots: g.supplies.shot, ranger: g.role === 'ranger', rifle: g.owned.includes('rifle'), carry: carryLimit(g) }, (meat, used) => {
+      import('../scenes').then((m) => m.startHunt({ shots: g.supplies.shot, ranger: g.role === 'ranger', rifle: g.owned.includes('rifle'), carry: carryLimit(g), meat: DIFFICULTY[g.difficulty].meat }, (meat, used) => {
         finishHunt(g, meat, used);
         render();
       }));
