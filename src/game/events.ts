@@ -44,8 +44,8 @@ export const EVENTS: GameEvent[] = [
     text: (s, w) => `A ${s.miles < 150 ? 'cottonmouth' : 'timber rattlesnake'} strikes ${w.name} at a creek.`,
     choices: [
       { label: (s) => `Use medicine (${s.supplies.medicine} left)`, ok: (s) => s.supplies.medicine > 0,
-        apply: (s, _, w) => { s.supplies.medicine--; damage(s, w, 10, 'snakebite'); return `You treat the bite. ${w.name} will live.`; } },
-      { label: 'Bind the wound and hope', apply: (s, _, w) => { damage(s, w, 30, 'snakebite'); if (w.status !== 'dead') w.status = 'injured'; return `${w.name}'s leg swells badly.`; } },
+        apply: (s, _, w) => { s.supplies.medicine--; damage(s, w, 15, 'snakebite'); return `You treat the bite. ${w.name} will live.`; } },
+      { label: 'Bind the wound and hope', apply: (s, _, w) => { damage(s, w, 40, 'snakebite'); if (w.status !== 'dead') w.status = 'injured'; return `${w.name}'s leg swells badly.`; } },
     ],
   },
   {
@@ -177,6 +177,95 @@ export const EVENTS: GameEvent[] = [
           return 'Nothing but mice.';
         } },
       ok('Leave it be'),
+    ],
+  },
+
+  // --- Events that reward particular play styles ---
+  {
+    // Fast travelers: trade health for miles.
+    id: 'nightMarch',
+    weight: (s) => (s.pace === 'strenuous' || s.pace === 'grueling' ? 3 : 0),
+    text: () => 'Clear skies and a full moon. The road ahead is good, and rain is coming in a day or two.',
+    choices: [
+      { label: 'March on through the night',
+        apply: (s) => { s.miles = Math.min(s.miles + 12, nextMile(s) - 1); alive(s).forEach((m) => damage(s, m, 6, 'exhaustion')); return 'You make good miles by moonlight.'; } },
+      ok('Make camp as usual'),
+    ],
+  },
+  {
+    // Hunters: shot pays off without a full day's hunt.
+    id: 'deer',
+    weight: (s) => (s.supplies.shot >= 5 ? 2 : 0),
+    text: () => 'A buck steps out to drink at the creek, not fifty yards off.',
+    choices: [
+      { label: 'Take the shot (5 rounds)', ok: (s) => s.supplies.shot >= 5,
+        apply: (s) => {
+          s.supplies.shot -= 5;
+          if (rand(s) < (s.role === 'ranger' ? 0.85 : 0.5)) { s.supplies.food += 50; return 'A clean shot. 50 lb of venison.'; }
+          return 'You miss, and the buck crashes away.';
+        } },
+      ok('Let it go'),
+    ],
+  },
+  {
+    // Upcountry danger that punishes carrying no powder.
+    id: 'wolves',
+    weight: (s) => (s.miles > 150 ? 2 : 0),
+    text: () => 'Wolves circle the camp after dark, drawn by the smell of your meat.',
+    choices: [
+      { label: 'Fire into the dark (10 rounds)', ok: (s) => s.supplies.shot >= 10,
+        apply: (s) => { s.supplies.shot -= 10; return 'The wolves scatter and do not come back.'; } },
+      { label: 'Build up the fire and hope', apply: (s) => `By morning they have torn into your stores. You lose ${loseFood(s, 0.2, 0.35)} lb of food.` },
+    ],
+  },
+  {
+    // Medicine as trade goods.
+    id: 'sickTraveler',
+    weight: (s) => (s.supplies.medicine > 0 ? 1.5 : 0),
+    text: () => "A packhorse man's son burns with fever. His father offers £15 for a dose of medicine.",
+    choices: [
+      { label: 'Sell a dose (£15)', ok: (s) => s.supplies.medicine > 0,
+        apply: (s) => { s.supplies.medicine--; s.supplies.money += 15; s.morale = clamp(s.morale + 5); return 'The boy rallies, and his father pays gladly.'; } },
+      ok('Keep your medicine'),
+    ],
+  },
+  {
+    // Merchants: connections mean coast prices inland.
+    id: 'factor',
+    weight: (s) => (s.miles > 60 ? (s.role === 'merchant' ? 3 : 0.5) : 0),
+    text: (s) => s.role === 'merchant'
+      ? 'A Charleston factor you do business with is hauling goods inland. He offers you 60 lb of food and 20 rounds at coast prices: £10.'
+      : 'A Charleston factor hauling goods inland will part with 60 lb of food and 20 rounds for £16.',
+    choices: [
+      { label: (s) => `Buy (£${s.role === 'merchant' ? 10 : 16})`, ok: (s) => s.supplies.money >= (s.role === 'merchant' ? 10 : 16),
+        apply: (s) => { s.supplies.money -= s.role === 'merchant' ? 10 : 16; s.supplies.food += 60; s.supplies.shot += 20; return 'You load the goods.'; } },
+      ok('No, thank you'),
+    ],
+  },
+  {
+    // Farmers: handy with a broken wagon, and neighbors repay it.
+    id: 'settlerWagon',
+    weight: () => 1.5,
+    text: () => "A settler family's wagon sits in the road with a cracked axle. The children watch you hopefully.",
+    choices: [
+      { label: 'Stop and help (a day)',
+        apply: (s) => {
+          advanceDay(s, false);
+          if (rand(s) < (s.role === 'farmer' ? 0.9 : 0.5)) { s.supplies.food += 40; s.morale = clamp(s.morale + 10); return 'You get them rolling. They insist you take 40 lb of corn and bacon.'; }
+          s.morale = clamp(s.morale - 5);
+          return 'Despite a day of work, the axle cannot be saved.';
+        } },
+      ok('Pass them by'),
+    ],
+  },
+  {
+    // Patient travelers: a slow day earns food.
+    id: 'harvest',
+    weight: (s) => (s.miles > 80 && (s.pace === 'steady' || s.pace === 'rest') ? 2 : 0),
+    text: () => 'Settlers at a homestead are rolling logs to clear a field. They offer food for a day of work.',
+    choices: [
+      { label: 'Work a day', apply: (s) => { advanceDay(s, false); s.supplies.food += 50; s.morale = clamp(s.morale + 5); return 'A long day, a good supper, and 50 lb of food to take with you.'; } },
+      ok('Move on'),
     ],
   },
 ];

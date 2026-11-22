@@ -53,9 +53,9 @@ export interface GameState {
 }
 
 export const ROLES: Record<Role, { label: string; money: number; perk: string }> = {
-  merchant: { label: 'Charleston merchant', money: 300, perk: 'Starts with the most money.' },
+  merchant: { label: 'Charleston merchant', money: 250, perk: 'Starts with the most money.' },
   farmer: { label: 'Backcountry farmer', money: 180, perk: 'Wagon repairs succeed more often.' },
-  ranger: { label: 'Ranger', money: 120, perk: 'A better shot when hunting.' },
+  ranger: { label: 'Ranger', money: 150, perk: 'A better shot when hunting.' },
 };
 
 export function newGame(role: Role, names: string[], seed = Date.now()): GameState {

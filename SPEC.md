@@ -25,9 +25,9 @@ An original survival-journey game in the wagon-trail genre, set on the South Car
 
 ## Player setup
 - **Role**:
-  - Charleston merchant: £300 to start.
-  - Backcountry farmer: £180, and repairs succeed more often.
-  - Ranger: £120, and hunting is better (bigger hit area, game moves slower).
+  - Charleston merchant: £250 to start. Gets bargains from a Charleston factor on the road.
+  - Backcountry farmer: £180, and repairs (their own and other settlers') succeed more often.
+  - Ranger: £150, and hunting is better (bigger hit area, game moves slower).
 - **Party**: a leader plus 4 named companions. Each has health from 0 to 100 and a status of well, sick, injured or dead.
 - **Supplies**: food (lbs), powder and shot (shots), spare wheels, axles and tongues, medicine (doses), river gear (rope and caulking), and money (£).
 - Prices go up the farther inland you buy.
@@ -37,7 +37,7 @@ An original survival-journey game in the wagon-trail genre, set on the South Car
   - Rest: 0 miles a day.
   - Steady: 12 miles a day.
   - Strenuous: 16 miles a day.
-  - Grueling: 20 miles a day.
+  - Grueling: 22 miles a day.
   - The base miles are then multiplied by wagon condition and weather.
 - **Rations**: filling (3 lb a person a day), meager (2 lb), or bare (1 lb).
 - **Health**:
@@ -46,6 +46,8 @@ An original survival-journey game in the wagon-trail genre, set on the South Car
   - A member dies when their health reaches 0.
   - With no food, everyone loses health quickly.
 - **Morale** (0–100) changes with health, deaths and events. Low morale slows travel.
+- The **bloody flux** (dysentery) can strike anyone on any day, less often while resting. Sick members lose health daily until they recover or you treat them with medicine.
+- The ledger shows food as days left at current rations and warns when under 3 days.
 - **Weather** changes each day: fair, hot and humid, rain, thunderstorm or fog. Rain raises the rivers.
 - Each day there's a chance of one weighted random event, and landmarks have fixed events.
 
@@ -65,6 +67,16 @@ An original survival-journey game in the wagon-trail genre, set on the South Car
 - Finding wild berries.
 - A lost ox.
 - A good camp.
+- An abandoned cabin.
+
+Events that reward particular play styles:
+- A moonlit night march (fast paces only): miles for health.
+- A buck at the creek: a quick shot for meat (rangers rarely miss).
+- Wolves in the upcountry: spend powder or lose food.
+- A sick traveler who pays £15 for a dose of medicine.
+- A Charleston factor selling at coast prices (mostly to merchants).
+- A settler's broken wagon: a day's help for food (farmers almost always succeed).
+- A homestead clearing a field: a day's work for food (steady or resting parties).
 
 Most events offer a choice with a trade-off, for example "use medicine or press on" or "repair now (uses a part) or limp along (slower)".
 

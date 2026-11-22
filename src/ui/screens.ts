@@ -1,5 +1,5 @@
 import { alive, newGame, ROLES, score, type GameState, type Pace, type Rations, type Role } from '../game/state';
-import { advanceDay, carryLimit, dateText, finishHunt } from '../game/tick';
+import { advanceDay, carryLimit, dateText, finishHunt, foodDays, treatSick } from '../game/tick';
 import { currentEvent, resolveEvent } from '../game/events';
 import { canCross, cross, depth, risk, waitRiver, type Method } from '../game/river';
 import { clearSave, load, save } from '../game/save';
@@ -62,7 +62,7 @@ function ledger(g: GameState) {
   return `<dl class="ledger">
     <dt>Date</dt><dd>${dateText(g.day)}</dd>
     <dt>Weather</dt><dd>${g.weather}</dd>
-    <dt>Food</dt><dd>${g.supplies.food} lb</dd>
+    <dt>Food</dt><dd>${g.supplies.food} lb (~${foodDays(g)} days)${foodDays(g) < 3 ? ' LOW' : ''}</dd>
     <dt>Morale</dt><dd>${healthWord(g.morale)}</dd>
     <dt>Traveled</dt><dd>${g.miles} of ${TOTAL_MILES} mi</dd>
     <dt>Next</dt><dd>${next ? `${next.name}, ${next.mile - g.miles} mi` : '-'}</dd>
@@ -79,6 +79,7 @@ function travel(g: GameState) {
   </div>
   ${btn('day', g.pace === 'rest' ? 'Rest a day' : 'Travel on')}
   ${btn('hunt', 'Go hunting (a day)', '', g.supplies.shot === 0)}
+  ${alive(g).some((m) => m.status !== 'well') ? btn('treat', `Treat the sick (${g.supplies.medicine} doses)`, '', g.supplies.medicine === 0) : ''}
   ${atStore ? btn('store', `Visit the ${here.name} store`) : ''}
   ${log(g)}`;
 }
@@ -161,6 +162,7 @@ function act(name: string, arg: string) {
     else if (name === 'store') s.phase = 'store';
     else if (name === 'travel') s.phase = 'travel';
     else if (name === 'day') advanceDay(s);
+    else if (name === 'treat') treatSick(s);
     else if (name === 'choose') resolveEvent(s, Number(arg));
     else if (name === 'cross') cross(s, arg as Method);
     else if (name === 'wait') waitRiver(s);
