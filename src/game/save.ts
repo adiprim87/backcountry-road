@@ -1,4 +1,5 @@
 import type { GameState } from './state';
+import { repairPending } from './events';
 
 const KEY = 'backcountry-road-save-v1';
 
@@ -16,6 +17,7 @@ export function load(): GameState | null {
     s.rep ??= { catawba: 0, cherokee: 0, settlers: 0, traders: 0 };
     s.owned ??= [];
     if (s.phase === 'hunt') s.phase = 'travel'; // a hunt in progress can't be resumed
+    repairPending(s);
     return s;
   } catch {
     return null;

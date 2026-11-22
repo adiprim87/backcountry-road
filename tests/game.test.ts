@@ -209,6 +209,19 @@ describe('save', () => {
     expect(load()).toBeNull();
   });
 
+  it('repairs saves made mid-event by an older version', () => {
+    const s = newGame('merchant', NAMES, 2);
+    s.miles = 100; s.phase = 'event';
+    s.pending = { id: 'catawba', target: 0 }; // trade event saved before offers existed
+    save(s);
+    const loaded = load()!;
+    expect(() => currentEvent(loaded)).not.toThrow();
+    expect(loaded.pending!.offer).toBeDefined();
+    s.pending = { id: 'no-such-event', target: 0 };
+    save(s);
+    expect(load()).toMatchObject({ phase: 'travel', pending: undefined });
+  });
+
   it('ignores junk in storage', () => {
     localStorage.setItem('backcountry-road-save-v1', '{"nope":1}');
     expect(load()).toBeNull();

@@ -1,6 +1,6 @@
 import { alive, newGame, ROLES, score, type GameState, type Group, type Pace, type Rations, type Role } from '../game/state';
 import { advanceDay, carryLimit, dateText, finishHunt, foodDays, treatSick } from '../game/tick';
-import { currentEvent, mood, OWNED_LABEL, resolveEvent } from '../game/events';
+import { currentEvent, GROUP_NAME, mood, OWNED_LABEL, resolveEvent } from '../game/events';
 import { canCross, cross, crossRisk, depth, waitRiver, type Method } from '../game/river';
 import { clearSave, load, save } from '../game/save';
 import { ROUTE, TOTAL_MILES } from '../game/route';
@@ -71,12 +71,11 @@ function ledger(g: GameState) {
   </dl><ul class="party">${party}</ul>`;
 }
 
-const GROUPS: [Group, string][] = [['catawba', 'Catawba'], ['cherokee', 'Cherokee'], ['settlers', 'Settlers'], ['traders', 'Traders']];
-
 /** Standing with each people you've dealt with (hidden until it moves off neutral). */
 function relations(g: GameState) {
-  const known = GROUPS.filter(([k]) => g.rep[k] !== 0);
-  return known.length ? `<dt>Relations</dt><dd>${known.map(([k, n]) => `${n} ${mood(g.rep[k])}`).join(', ')}</dd>` : '';
+  const known = (Object.keys(GROUP_NAME) as Group[]).filter((k) => g.rep[k] !== 0);
+  const cap = (t: string) => t[0].toUpperCase() + t.slice(1);
+  return known.length ? `<dt>Relations</dt><dd>${known.map((k) => `${cap(GROUP_NAME[k])} ${mood(g.rep[k])}`).join(', ')}</dd>` : '';
 }
 
 function travel(g: GameState) {

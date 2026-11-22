@@ -31,7 +31,7 @@ const ok = (msg: string) => ({ label: msg, apply: () => '' });
 
 // ---------- Trading and reputation ----------
 
-const GROUP_NAME: Record<Group, string> = { catawba: 'Catawba', cherokee: 'Cherokee', settlers: 'settlers', traders: 'traders' };
+export const GROUP_NAME: Record<Group, string> = { catawba: 'Catawba', cherokee: 'Cherokee', settlers: 'settlers', traders: 'traders' };
 
 /** -3..3 as a word, for the ledger and greetings. */
 export const mood = (r: number) => (r >= 3 ? 'trusted' : r >= 1 ? 'friendly' : r <= -2 ? 'wary' : r < 0 ? 'cool' : 'neutral');
@@ -202,10 +202,9 @@ export const EVENTS: GameEvent[] = [
     choices: [
       { label: 'Backtrack to the last blaze (2 days)', apply: (s) => { advanceDay(s, false); advanceDay(s, false); return 'You find the trail again.'; } },
       { label: 'Cut through the woods',
-        apply: (s, p) => {
+        apply: (s) => {
           if (rand(s) >= 0.4) return 'You cut through and strike the trail again.';
-          s.pending = { id: 'break', target: p.target, part: PARTS[Math.floor(rand(s) * 3)] };
-          s.phase = 'event';
+          startEvent(s, 'break');
           return 'You crash through the brush. Something cracks.';
         } },
     ],
@@ -217,11 +216,11 @@ export const EVENTS: GameEvent[] = [
     choices: [{ label: 'Throw out the spoiled food', apply: (s) => `You lose ${loseFood(s, 0.15, 0.3)} lb of food.` }],
   },
   tradeEvent('peddler', 'traders', (s) => (s.miles > 20 ? 1.5 : 0),
-    'A peddler with a packhorse hails you from the roadside.',
+    'Two peddlers leading packhorses hail you from the roadside.',
     [['money', 8], ['shot', 15]],
     [['medicine', 2], ['riverGear', 1], ['food', 30]]),
   tradeEvent('catawba', 'catawba', (s) => (s.miles > 30 && s.miles < 200 ? 2.5 : 0),
-    'A Catawba trader traveling to Charles Town with deerskins stops to talk.',
+    'Catawba traders carrying deerskins to Charles Town stop to talk.',
     [['shot', 15], ['money', 10], ['medicine', 1]],
     [['food', 45], ['medicine', 2], ['riverGear', 1]]),
   tradeEvent('cherokeeTrade', 'cherokee', (s) => (s.miles > 150 ? 2.5 : 0),
@@ -229,7 +228,7 @@ export const EVENTS: GameEvent[] = [
     [['shot', 20], ['money', 12], ['medicine', 2]],
     [['food', 55], ['medicine', 2], ['riverGear', 1]]),
   tradeEvent('homestead', 'settlers', (s) => (s.miles > 25 ? 2 : 0),
-    'A homesteader leans on his fence and asks if you have anything to trade.',
+    'A homesteading family waves you over and asks if you have anything to trade.',
     [['money', 8], ['shot', 10], ['medicine', 1]],
     [['food', 40], ['wheels', 1], ['axles', 1], ['riverGear', 1]]),
   {
@@ -406,6 +405,20 @@ export function rollEvent(s: GameState) {
   const pool = EVENTS.filter((e) => !(e.once && s.seen.includes(e.id))).map((e) => ({ e, w: e.weight(s) })).filter((x) => x.w > 0);
   if (!pool.length) return;
   startEvent(s, weighted(s, pool).e.id);
+}
+
+/**
+ * Saves from older versions may hold an event that no longer exists,
+ * or one that gained a setup step (rolled offer) after it was saved.
+ */
+export function repairPending(s: GameState) {
+  const p = s.pending;
+  if (!p) return;
+  const e = EVENTS.find((e) => e.id === p.id);
+  if (!e) {
+    s.pending = undefined;
+    if (s.phase === 'event') s.phase = 'travel';
+  } else if (e.setup && !p.offer) e.setup(s, p);
 }
 
 /** Begin a specific event: pick who it's about, roll its details, show it. */

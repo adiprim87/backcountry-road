@@ -1,6 +1,6 @@
 // Balance check: plays thousands of games with simple scripted strategies.
 // Run: npx vite-node scripts/balance.ts [gamesPerCell]
-import { alive, newGame, ROLES, type GameState, type Pace, type Rations, type Role } from '../src/game/state';
+import { alive, newGame, ROLES, score, type GameState, type Pace, type Rations, type Role } from '../src/game/state';
 import { advanceDay, carryLimit, finishHunt, foodDays, treatSick } from '../src/game/tick';
 import { currentEvent, resolveEvent } from '../src/game/events';
 import { canCross, cross, depth, risk, waitRiver } from '../src/game/river';
@@ -107,7 +107,6 @@ for (const [name, st] of Object.entries(STRATEGIES)) {
 console.log('\nCauses are deaths per game (5 = whole party), plus "abandoned wagon" losses.');
 
 // Do the big items pay off? Careful bots buy whatever they can afford, so compare runs with and without each.
-import { score } from '../src/game/state';
 console.log('\nBig items (careful strategy, all roles): runs that bought it vs. runs that did not');
 console.log('item     bought   win  avgScore(won) | not bought   win  avgScore(won)');
 const runs = (Object.keys(ROLES) as Role[]).flatMap((role) => Array.from({ length: N }, (_, i) => play(role, STRATEGIES.careful, i + 1)));
