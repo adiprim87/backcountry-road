@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { alive, newGame, runSummary, score, type GameState } from '../src/game/state';
+import { alive, daily, newGame, runSummary, score, type GameState } from '../src/game/state';
 import { advanceDay, finishHunt, treatSick } from '../src/game/tick';
 import { buy, unitPrice } from '../src/game/store';
 import { TOTAL_MILES } from '../src/game/route';
@@ -474,5 +474,40 @@ describe('journal and sharing', () => {
     lost.supplies.food = 7; lost.pace = 'rest';
     run(lost);
     expect(runSummary(lost)).toMatch(/ended at mile 0 of 300 after \d+ days \(Normal\)/);
+  });
+});
+
+import { epilogue } from '../src/game/ending';
+
+describe('daily challenge and endings', () => {
+  it('the daily seed is the same all day (UTC) and changes the next day', () => {
+    const a = daily(new Date('2026-11-22T00:30:00Z')), b = daily(new Date('2026-11-22T23:59:00Z'));
+    expect(a).toEqual(b);
+    expect(a.date).toBe('2026-11-22');
+    expect(daily(new Date('2026-11-23T00:00:00Z')).seed).not.toBe(a.seed);
+    const s = newGame('farmer', NAMES, a.seed);
+    s.daily = a.date;
+    s.result = 'won';
+    expect(runSummary(s)).toMatch(/^Backcountry Road daily 2026-11-22: reached/);
+  });
+
+  it('the ending reflects survivors, the warrant, money and relations', () => {
+    const s = newGame('merchant', NAMES, 1);
+    s.result = 'won'; s.day = 40; s.supplies.money = 20;
+    expect(epilogue(s)).toEqual([
+      'All 5 of you walk through the gate of the fort together.',
+      'You arrive with little but your wagon, and hire on as laborers at the fort.',
+    ]);
+    s.party.slice(1).forEach((m) => (m.status = 'dead'));
+    s.owned.push('deed');
+    s.rep.cherokee = 2;
+    s.day = 25;
+    const lines = epilogue(s).join(' ');
+    expect(lines).toMatch(/only Ann arrives/);
+    expect(lines).toMatch(/Long Canes Creek/);
+    expect(lines).toMatch(/Cherokee friends/);
+    expect(lines).toMatch(/fast passage/);
+    s.result = 'lost';
+    expect(epilogue(s)).toEqual(['The warrant for 200 acres on Long Canes Creek is never claimed.']);
   });
 });

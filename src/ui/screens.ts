@@ -1,4 +1,4 @@
-import { alive, DIFFICULTY, newGame, ROLES, runSummary, score, type Difficulty, type GameState, type Group, type Pace, type Rations, type Role } from '../game/state';
+import { alive, daily, DIFFICULTY, newGame, ROLES, runSummary, score, type Difficulty, type GameState, type Group, type Pace, type Rations, type Role } from '../game/state';
 import { advanceDay, carryLimit, dateText, finishHunt, foodDays, treatSick } from '../game/tick';
 import { currentEvent, GROUP_NAME, mood, OWNED_LABEL, resolveEvent } from '../game/events';
 import { canCross, canFish, cross, crossRisk, depth, finishFish, waitRiver, type Method } from '../game/river';
@@ -8,6 +8,7 @@ import { buy, ITEMS, unitPrice, type ItemKey } from '../game/store';
 import { loadScores, recordScore, type ScoreEntry } from '../game/scores';
 import { isMuted, sfx, toggleMute } from '../sound';
 import { answerQuiz, QUIZ_REWARD } from '../game/quiz';
+import { epilogue } from '../game/ending';
 
 const DEFAULT_NAMES = ['Thomas', 'Mary', 'Johann', 'Sarah', 'Elias'];
 
@@ -20,6 +21,8 @@ let recorded: { run: GameState; entry: ScoreEntry; list: ScoreEntry[] } | null =
 let last = { run: null as GameState | null, phase: '', dead: 0 };
 let journalOpen = false;
 let shared = ''; // feedback after the Share button
+let announcer: HTMLElement; // lives outside #ui, so screen readers hear it even though #ui is redrawn
+let heard = { run: null as GameState | null, lines: 0, event: '' };
 
 const esc = (t: string) => t.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 const btn = (act: string, label: string, arg = '', disabled = false) =>
@@ -45,7 +48,7 @@ const soundBtn = () => btn('sound', isMuted() ? 'Sound: off' : 'Sound: on');
 function scores(list: ScoreEntry[], mine?: ScoreEntry) {
   if (!list.length) return '';
   const rows = list.map((e) => `<tr${e === mine ? ' class="mine"' : ''}><td>${esc(e.name)}</td><td>${esc(String(e.role))}</td>
-    <td>${DIFFICULTY[e.difficulty]?.label ?? ''}</td><td>${e.days}</td><td>${e.score}</td></tr>`).join('');
+    <td>${DIFFICULTY[e.difficulty]?.label ?? ''}${e.daily ? ' (daily)' : ''}</td><td>${e.days}</td><td>${e.score}</td></tr>`).join('');
   return `<h2>Best journeys</h2><table class="scores"><thead><tr><th>Leader</th><th>Role</th><th>Level</th><th>Days</th><th>Score</th></tr></thead>
   <tbody>${rows}</tbody></table>`;
 }
@@ -63,6 +66,7 @@ function outfit() {
   <form><fieldset><legend>Who are you?</legend>${roles}</fieldset>
   <fieldset><legend>Difficulty</legend>${levels}
   <p class="note">Easy: more money, less sickness and fewer events. Hard: less money, more sickness and more events.</p></fieldset>
+  <label class="row"><input type="checkbox" name="daily"> Daily challenge: everyone who plays today starts with the same luck</label>
   <fieldset><legend>Your party</legend>${names}</fieldset>
   <button type="submit">Go to the store</button></form>`;
 }
@@ -118,7 +122,7 @@ function travel(g: GameState) {
   ${log(g)}`;
 }
 
-const log = (g: GameState) => `<ol class="log" aria-live="polite">${g.log.map((l) => `<li>${esc(l)}</li>`).join('')}</ol>`;
+const log = (g: GameState) => `<ol class="log">${g.log.map((l) => `<li>${esc(l)}</li>`).join('')}</ol>`;
 
 function event(g: GameState) {
   const e = currentEvent(g);
@@ -183,7 +187,8 @@ function end(g: GameState) {
   <dt>Survivors</dt><dd>${alive(g).length} of ${g.party.length}</dd>
   <dt>Food left</dt><dd>${g.supplies.food} lb</dd><dt>Money left</dt><dd>£${g.supplies.money}</dd>
   ${g.result === 'won' ? `<dt>Score</dt><dd>${score(g)}</dd>` : ''}</dl>
-  ${g.result === 'won' && g.owned.includes('deed') ? '<p>Your land warrant for 200 acres on Long Canes Creek is good. You have a home on the frontier. (+500 score)</p>' : ''}
+  ${epilogue(g).map((l) => `<p>${esc(l)}</p>`).join('')}
+  ${g.result === 'won' && g.owned.includes('deed') ? '<p class="note">Land warrant: +500 score.</p>' : ''}
   ${dead.length ? `<p>Lost on the road:</p><ul>${dead.map((m) => `<li>${esc(m.name)}, ${m.cause}</li>`).join('')}</ul>` : ''}
   ${recorded?.run === g ? scores(recorded.list, recorded.entry) : ''}
   ${btn('share', 'Share your run')} ${btn('journal', 'Read your journal')} ${btn('again', 'Play again')}
@@ -202,7 +207,7 @@ function journal(g: GameState) {
 /** Once per finished run: put a win on the score table. */
 function recordEnd(g: GameState) {
   if (g.result !== 'won' || recorded?.run === g) return;
-  const entry: ScoreEntry = { name: g.party[0].name, role: g.role, difficulty: g.difficulty, score: score(g), days: g.day };
+  const entry: ScoreEntry = { name: g.party[0].name, role: g.role, difficulty: g.difficulty, score: score(g), days: g.day, daily: g.daily };
   recorded = { run: g, entry, list: recordScore(entry) };
 }
 
@@ -217,6 +222,17 @@ function playSounds() {
   last = { run: s, phase: s?.phase ?? '', dead };
 }
 
+/** Read out what's new since the last render: new journal lines, then a new event's text. */
+function announce() {
+  if (!s) return;
+  if (heard.run !== s) heard = { run: s, lines: s.journal.length, event: '' }; // a new or continued run: don't replay old news
+  const ev = s.phase === 'event' ? currentEvent(s).text : '';
+  const news = s.journal.slice(heard.lines).map((e) => e.text);
+  if (ev && ev !== heard.event) news.push(ev);
+  heard = { run: s, lines: s.journal.length, event: ev };
+  if (news.length) announcer.textContent = news.join(' ');
+}
+
 function render() {
   if (s?.phase === 'end') recordEnd(s);
   playSounds();
@@ -226,6 +242,7 @@ function render() {
   if (s?.phase === 'end') clearSave();
   else if (s && s.phase !== 'hunt' && s.phase !== 'fish') save(s);
   syncCanvas();
+  announce();
   root.querySelector<HTMLElement>('button:not([disabled]), input')?.focus({ preventScroll: true });
 }
 
@@ -291,6 +308,9 @@ function act(name: string, arg: string) {
 
 export function mount(el: HTMLElement) {
   root = el;
+  announcer = Object.assign(document.createElement('p'), { className: 'sr-only' });
+  announcer.setAttribute('aria-live', 'polite');
+  el.after(announcer);
   el.addEventListener('click', (e) => {
     const b = (e.target as HTMLElement).closest<HTMLButtonElement>('button[data-act]');
     if (b) act(b.dataset.act!, b.dataset.arg ?? '');
@@ -314,7 +334,9 @@ export function mount(el: HTMLElement) {
       return;
     }
     const names = f.getAll('member').map((n, i) => String(n).trim() || DEFAULT_NAMES[i]);
-    s = newGame(f.get('role') as Role, names, Date.now(), (f.get('difficulty') ?? 'normal') as Difficulty);
+    const today = f.get('daily') ? daily() : null;
+    s = newGame(f.get('role') as Role, names, today?.seed ?? Date.now(), (f.get('difficulty') ?? 'normal') as Difficulty);
+    if (today) s.daily = today.date;
     render();
   });
   render();

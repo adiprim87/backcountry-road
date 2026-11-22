@@ -45,7 +45,7 @@ button[disabled] { color: var(--dim); border-color: var(--line); cursor: not-all
 fieldset { border: 1px solid var(--line); margin: 0 0 16px; padding: 8px 12px; }
 legend { color: var(--dim); }
 .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 6px 0; }
-.row input[type=radio] { min-height: 0; accent-color: var(--fg); }
+.row input[type=radio], .row input[type=checkbox] { min-height: 0; accent-color: var(--fg); }
 .ledger { display: grid; grid-template-columns: max-content 1fr; gap: 0 16px; }
 .ledger dt { color: var(--dim); }
 .ledger dd { margin: 0; }
@@ -81,3 +81,4 @@ td button::before { content: ''; }
 .journal h3 { font-weight: normal; color: var(--dim); margin: 12px 0 0; }
 .journal ul { margin: 0; padding-left: 0; list-style: none; }
 .journal li::before { content: '- '; color: var(--dim); }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }

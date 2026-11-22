@@ -55,6 +55,7 @@ export interface GameState {
   rng: number;
   role: Role;
   difficulty: Difficulty;
+  daily?: string; // UTC date (YYYY-MM-DD) of a daily challenge run
   day: number;
   miles: number;
   at: number; // index into ROUTE of the last landmark reached
@@ -90,6 +91,14 @@ export const DIFFICULTY: Record<Difficulty, { label: string; money: number; even
   normal: { label: 'Normal', money: 1, events: 1, flux: 1, meat: 1 },
   hard: { label: 'Hard', money: 0.8, events: 1.2, flux: 2.5, meat: 0.8 },
 };
+
+/** Today's daily challenge: the UTC date, so it's the same run everywhere, and a seed made from it. */
+export function daily(now = new Date()) {
+  const date = now.toISOString().slice(0, 10);
+  let h = 2166136261; // FNV-1a hash
+  for (const c of date) h = Math.imul(h ^ c.charCodeAt(0), 16777619);
+  return { date, seed: h | 0 };
+}
 
 export function newGame(role: Role, names: string[], seed = Date.now(), difficulty: Difficulty = 'normal'): GameState {
   return {
@@ -155,7 +164,8 @@ export function checkEnd(s: GameState): boolean {
 /** One line for sharing a finished run. */
 export function runSummary(s: GameState): string {
   const level = DIFFICULTY[s.difficulty].label;
+  const name = s.daily ? `Backcountry Road daily ${s.daily}` : 'Backcountry Road';
   return s.result === 'won'
-    ? `Backcountry Road: reached Fort Prince George in ${s.day} days with ${alive(s).length} of ${s.party.length} alive (${level}). Score ${score(s)}.`
-    : `Backcountry Road: my party's journey ended at mile ${s.miles} of ${TOTAL_MILES} after ${s.day} days (${level}).`;
+    ? `${name}: reached Fort Prince George in ${s.day} days with ${alive(s).length} of ${s.party.length} alive (${level}). Score ${score(s)}.`
+    : `${name}: my party's journey ended at mile ${s.miles} of ${TOTAL_MILES} after ${s.day} days (${level}).`;
 }

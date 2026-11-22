@@ -1,6 +1,6 @@
 import type { Difficulty, Role } from './state';
 
-export interface ScoreEntry { name: string; role: Role; difficulty: Difficulty; score: number; days: number }
+export interface ScoreEntry { name: string; role: Role; difficulty: Difficulty; score: number; days: number; daily?: string }
 
 const KEY = 'backcountry-road-scores-v1';
 const MAX = 5;

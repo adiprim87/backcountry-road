@@ -133,6 +133,21 @@ Most events offer a choice with a trade-off, for example "use medicine or press 
 - The end screen shows a run summary (days, miles, deaths with their causes, score) and a Play Again button.
 - **Share your run** opens the phone's share sheet, or copies a one-line summary and the game link to the clipboard.
 
+## Daily challenge
+- A checkbox on the outfitting screen. Everyone who plays on the same day (UTC date) starts with the same luck: weather, events and river conditions. Different choices can still change what happens later.
+- Daily runs are marked in the score table and in the shared text.
+
+## Endings
+- A won run closes with a few lines shaped by how you played:
+  - how many of the party survived
+  - the land warrant, or whether you arrive with money or with little
+  - friendship with the Cherokee or Catawba, or a reputation for hard bargaining
+  - an unusually fast passage
+
+## Accessibility
+- Screen readers hear each new journal line and each new event as it happens, through one hidden message area that stays on the page.
+- The hunting and fishing games can be played with the keyboard.
+
 ## Journal
 - Every line the game writes is kept in a journal, grouped by date. The road screen shows only the last 8.
 - Open it from the road screen or the end screen to see how the trip went.
