@@ -156,11 +156,60 @@ function pic(key: string) {
   return `<img class="pic" src="${pics.get(key)}" alt="" width="${a.rows[0].length * scale}" height="${a.rows.length * scale}">`;
 }
 
+// The timing meter for a skill choice: a marker sweeps the bar; stop it inside the green zone.
+const SWEEP_MS = 850; // one pass across the bar
+let meter: { choice: number; verb: string; from: number; to: number; start: number; result?: boolean } | null = null;
+let meterFrame = 0;
+const meterPos = (now: number) => { const x = ((now - meter!.start) / SWEEP_MS) % 2; return x < 1 ? x : 2 - x; };
+
 function event(g: GameState) {
   const e = currentEvent(g);
-  return `<h2>${dateText(g.day)}</h2>${pic(EVENT_PIC[g.pending!.id] ?? '')}<p class="event">${esc(e.text)}</p>
-  ${e.choices.map((c, i) => btn('choose', esc(c.label), String(i), !c.ok)).join(' ')}
+  const head = `<h2>${dateText(g.day)}</h2>${pic(EVENT_PIC[g.pending!.id] ?? '')}<p class="event">${esc(e.text)}</p>`;
+  if (meter) {
+    const m = meter, state = m.result === undefined ? '' : m.result ? ' hit' : ' miss';
+    return `${head}<p>${esc(m.verb)}: stop the marker inside the green.</p>
+    <button data-act="stop" class="meter${state}" aria-label="Stop"${m.result !== undefined ? ' disabled' : ''}>
+      <span class="zone" style="left:${m.from * 100}%;width:${(m.to - m.from) * 100}%"></span><span class="mark"></span></button>
+    ${m.result === undefined ? btn('chance', 'Leave it to chance') : `<p role="status">${m.result ? 'Well done!' : 'Missed.'}</p>`}`;
+  }
+  return `${head}
+  ${e.choices.map((c, i) => c.skill
+    ? btn('skill', `${esc(c.label)} <span class="tag">[skill]</span>`, String(i), !c.ok)
+    : btn('choose', esc(c.label), String(i), !c.ok)).join(' ')}
   ${log(g)}`;
+}
+
+/** Keep the marker moving while the meter is up. */
+function runMeter() {
+  cancelAnimationFrame(meterFrame);
+  const mark = root.querySelector<HTMLElement>('.meter .mark');
+  if (!meter || meter.result !== undefined || !mark) return;
+  const tick = (now: number) => { mark.style.left = `${meterPos(now) * 100}%`; meterFrame = requestAnimationFrame(tick); };
+  meterFrame = requestAnimationFrame(tick);
+}
+
+/** Stop the marker (or leave it to chance), show the result a moment, then resolve the event. */
+function stopMeter(g: GameState, chance: boolean) {
+  if (!meter || meter.result !== undefined) return;
+  const m = meter;
+  cancelAnimationFrame(meterFrame);
+  if (chance) {
+    meter = null;
+    resolveEvent(g, m.choice);
+    render();
+    return;
+  }
+  const pos = meterPos(performance.now());
+  const won = pos >= m.from && pos <= m.to;
+  m.result = won;
+  (won ? sfx.hit : sfx.miss)();
+  render();
+  const mark = root.querySelector<HTMLElement>('.meter .mark');
+  if (mark) mark.style.left = `${pos * 100}%`; // freeze exactly where it was judged
+  // Apply and save now, so reloading during the pause can't retry a miss; only the redraw waits.
+  resolveEvent(g, m.choice, won);
+  save(g);
+  setTimeout(() => { meter = null; render(); }, 700);
 }
 
 const riskWord = (r: number) => (r < 0.08 ? 'low' : r < 0.25 ? 'moderate' : r < 0.5 ? 'high' : 'very high');
@@ -276,6 +325,7 @@ function render() {
   else if (s && s.phase !== 'hunt' && s.phase !== 'fish') save(s);
   syncCanvas();
   if (!cutscene) announce();
+  runMeter();
   root.querySelector<HTMLElement>('button:not([disabled]), input')?.focus({ preventScroll: true });
 }
 
@@ -312,7 +362,7 @@ const campOpts = (g: GameState, title: string) => ({
 function act(name: string, arg: string) {
   if (name === 'outfit') view = 'outfit';
   else if (name === 'continue') s = load();
-  else if (name === 'again') { s = null; view = 'title'; journalOpen = false; shared = ''; }
+  else if (name === 'again') { s = null; view = 'title'; journalOpen = false; shared = ''; meter = null; }
   else if (name === 'journal') journalOpen = !journalOpen;
   else if (name === 'share' && s) { share(s); return; }
   else if (name === 'sound') toggleMute();
@@ -328,6 +378,14 @@ function act(name: string, arg: string) {
     else if (name === 'day') advanceDay(s);
     else if (name === 'treat') treatSick(s);
     else if (name === 'choose') resolveEvent(s, Number(arg));
+    else if (name === 'skill') {
+      const c = currentEvent(s).choices[Number(arg)];
+      if (!c?.ok || !c.skill) return;
+      const width = 0.12 + c.skill.odds * 0.3; // better odds, wider green zone
+      const from = Math.random() * (1 - width);
+      meter = { choice: Number(arg), verb: c.skill.verb, from, to: from + width, start: performance.now() };
+    }
+    else if (name === 'stop' || name === 'chance') { stopMeter(s, name === 'chance'); return; }
     else if (name === 'cross') {
       const river = ROUTE[s.at].name, method = arg as Method;
       const safe = cross(s, method);

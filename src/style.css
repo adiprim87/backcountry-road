@@ -83,3 +83,14 @@ td button::before { content: ''; }
 .journal li::before { content: '- '; color: var(--dim); }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .pic { display: block; margin: 12px 0 0; image-rendering: pixelated; }
+/* Timing meter for skill choices: the whole bar is the Stop button */
+.meter { position: relative; display: block; width: 100%; height: 48px; padding: 0; margin: 8px 0 12px; background: var(--bg); overflow: hidden; }
+.meter::before { content: none; }
+.meter:hover:not([disabled]), .meter:focus-visible { background: var(--bg); outline: 2px solid var(--fg); outline-offset: 2px; }
+.meter[disabled] { border-color: var(--fg); cursor: default; }
+.meter .zone { position: absolute; top: 0; bottom: 0; background: rgba(125, 255, 138, 0.35); }
+.meter .mark { position: absolute; top: 0; bottom: 0; left: 0; width: 6px; margin-left: -3px; background: #ffffcc; box-shadow: 0 0 6px #ffffcc; }
+.meter.hit .zone { background: var(--fg); }
+.meter.miss .mark { background: #d94a3a; box-shadow: none; }
+.tag { color: var(--dim); }
+button:hover:not([disabled]) .tag, button:focus-visible .tag { color: var(--bg); }

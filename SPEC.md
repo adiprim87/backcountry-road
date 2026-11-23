@@ -84,6 +84,15 @@ Events that reward particular play styles:
 
 Most events offer a choice with a trade-off, for example "use medicine or press on" or "repair now (uses a part) or limp along (slower)".
 
+**Skill checks.** Risky choices that used to be a hidden dice roll are now a timing meter marked [skill]. A marker sweeps a bar, and you stop it (tap, click, Space or Enter) inside the green zone:
+- the creek buck: "Steady your aim"
+- mending a broken part: "Strike the iron true"
+- cutting through the woods: "Pick your way through"
+- helping a settler's wagon: "Lever the axle"
+- driving a hard bargain: "Hold your nerve"
+
+The zone's width comes from the old odds, so rangers aim wider, farmers mend wider, and good standing makes bargaining easier. "Leave it to chance" rolls the old odds instead, for anyone who can't or doesn't want to play the meter. The balance bots also use it.
+
 ## Trading & reputation
 - Trades with the Catawba, the Cherokee, settlers and traveling traders are rolled fresh each time: what they want, what they offer, and how much, within ±30%.
 - Each trade offers four choices:

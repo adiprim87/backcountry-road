@@ -32,6 +32,7 @@ function play(notes: [number, number][], type: OscillatorType = 'square', vol = 
 export const sfx = {
   shot: () => play([[140, 0.08]], 'sawtooth', 0.08),
   splash: () => play([[180, 0.08], [110, 0.2]], 'sawtooth', 0.06),
+  miss: () => play([[150, 0.12]], 'square', 0.05),
   hit: () => play([[660, 0.06], [880, 0.08]]),
   event: () => play([[440, 0.08], [554, 0.1]], 'triangle', 0.1),
   death: () => play([[220, 0.25], [165, 0.4]], 'triangle', 0.12),

@@ -545,3 +545,44 @@ describe('pixel art', () => {
     for (const e of EVENTS) expect(ART[EVENT_PIC[e.id]], e.id).toBeDefined();
   });
 });
+
+describe('skill checks in events', () => {
+  const at = (seed: number, id: string) => {
+    const s = newGame('merchant', NAMES, seed);
+    Object.assign(s.supplies, { food: 100, shot: 100, money: 100 });
+    s.miles = 100;
+    startEvent(s, id);
+    return s;
+  };
+
+  it('the meter result decides the outcome; without it the odds are rolled', () => {
+    for (let seed = 1; seed <= 20; seed++) {
+      const hit = at(seed, 'deer'), miss = at(seed, 'deer');
+      resolveEvent(hit, 0, true);
+      resolveEvent(miss, 0, false);
+      expect(hit.supplies.food).toBe(150);
+      expect(miss.supplies.food).toBe(100);
+    }
+    const rolled = new Set<number>();
+    for (let seed = 1; seed <= 30; seed++) { const s = at(seed, 'deer'); resolveEvent(s, 0); rolled.add(s.supplies.food); }
+    expect(rolled).toEqual(new Set([100, 150]));
+  });
+
+  it('skill choices report their odds, shaped by role', () => {
+    const odds = (role: 'ranger' | 'merchant') => {
+      const s = newGame(role, NAMES, 1);
+      s.supplies.shot = 10;
+      startEvent(s, 'deer');
+      return currentEvent(s).choices[0].skill!.odds;
+    };
+    expect(odds('ranger')).toBeGreaterThan(odds('merchant'));
+    expect(currentEvent(at(1, 'catawba')).choices.map((c) => !!c.skill)).toEqual([false, false, true, false]);
+  });
+
+  it('a meter result is ignored for choices without a skill check', () => {
+    const s = at(3, 'berries');
+    const food = s.supplies.food;
+    resolveEvent(s, 0, false);
+    expect(s.supplies.food).toBeGreaterThan(food);
+  });
+});

@@ -6,7 +6,10 @@ import { advanceDay, restDay } from './tick';
 interface Choice {
   label: string | ((s: GameState) => string);
   ok?: (s: GameState) => boolean;
-  apply: (s: GameState, p: Pending, who: Member) => string;
+  /** A skill check: the player tries a timing meter sized by `odds`, or leaves it to chance at those odds. */
+  skill?: { verb: string; odds: (s: GameState) => number };
+  /** `won` is the meter's result; undefined means roll the odds. */
+  apply: (s: GameState, p: Pending, who: Member, won?: boolean) => string;
 }
 
 interface GameEvent {
@@ -28,7 +31,12 @@ const loseFood = (s: GameState, min: number, max: number) => {
   return n;
 };
 const guidePrice = (s: GameState) => Math.max(2, Math.round(10 * priceFactor(s, 'cherokee')));
+const helpOdds = (s: GameState) => (s.role === 'farmer' ? 0.9 : 0.5);
+const mendOdds = (s: GameState) => (s.role === 'farmer' ? 0.75 : 0.5);
+const deerOdds = (s: GameState) => Math.min(0.95, (s.role === 'ranger' ? 0.85 : 0.5) + (s.owned.includes('rifle') ? 0.3 : 0));
 const ok = (msg: string) => ({ label: msg, apply: () => '' });
+/** Did a skill choice succeed: the player's meter result, or a roll at the same odds. */
+const succeeds = (s: GameState, odds: number, won?: boolean) => won ?? rand(s) < odds;
 
 // ---------- Trading and reputation ----------
 
@@ -40,6 +48,7 @@ export const mood = (r: number) => (r >= 3 ? 'trusted' : r >= 1 ? 'friendly' : r
 /** Price multiplier for a group: trusted pays ~55%, wary pays ~130%. */
 export const priceFactor = (s: GameState, g: Group) => 1 - 0.15 * Math.max(-2, Math.min(3, s.rep[g]));
 
+const bargainOdds = (s: GameState, g: Group) => (s.rep[g] > 0 ? 0.65 : 0.4);
 const changeRep = (s: GameState, g: Group, n: number) => (s.rep[g] = Math.max(-3, Math.min(3, s.rep[g] + n)));
 
 /** How a group greets you; tells the player where they stand. */
@@ -92,8 +101,9 @@ function tradeEvent(id: string, g: Group, weight: (s: GameState) => number, intr
         ok: (s) => s.supplies[offer(s).give] >= Math.ceil(offer(s).giveQty * 1.5),
         apply: (s, p) => { pay(s, p.offer!, 1.5); changeRep(s, g, 2); return `Your gift is received warmly. Good words about you will travel among the ${GROUP_NAME[g]}.`; } },
       { label: 'Drive a hard bargain (pay half)', ok: (s) => s.supplies[offer(s).give] >= Math.ceil(offer(s).giveQty / 2),
-        apply: (s, p) => {
-          if (rand(s) < (s.rep[g] > 0 ? 0.65 : 0.4)) {
+        skill: { verb: 'Hold your nerve', odds: (s) => bargainOdds(s, g) },
+        apply: (s, p, _, won) => {
+          if (succeeds(s, bargainOdds(s, g), won)) {
             pay(s, p.offer!, 0.5);
             changeRep(s, g, -2);
             return `They give in, but coldly. Word of this will travel among the ${GROUP_NAME[g]}.`;
@@ -174,9 +184,9 @@ export const EVENTS: GameEvent[] = [
     choices: [
       { label: (s) => `Fit a spare (${s.supplies[s.pending!.part!]} left)`, ok: (s) => s.supplies[s.pending!.part!] > 0,
         apply: (s, p) => { s.supplies[p.part!]--; return 'You fit the spare. The wagon rolls again.'; } },
-      { label: 'Try to mend it (takes a day)',
-        apply: (s, p) => {
-          const mended = rand(s) < (s.role === 'farmer' ? 0.75 : 0.5);
+      { label: 'Try to mend it (takes a day)', skill: { verb: 'Strike the iron true', odds: mendOdds },
+        apply: (s, p, _, won) => {
+          const mended = succeeds(s, mendOdds(s), won);
           restDay(s);
           if (mended) return `You mend the ${PART_NAME[p.part!]} well enough to go on.`;
           s.pending = p;
@@ -202,9 +212,9 @@ export const EVENTS: GameEvent[] = [
     text: () => 'The trail fades into a maze of cattle paths and canebrakes.',
     choices: [
       { label: 'Backtrack to the last blaze (2 days)', apply: (s) => { advanceDay(s, false); advanceDay(s, false); return 'You find the trail again.'; } },
-      { label: 'Cut through the woods',
-        apply: (s) => {
-          if (rand(s) >= 0.4) return 'You cut through and strike the trail again.';
+      { label: 'Cut through the woods', skill: { verb: 'Pick your way through', odds: () => 0.6 },
+        apply: (s, _, __, won) => {
+          if (succeeds(s, 0.6, won)) return 'You cut through and strike the trail again.';
           startEvent(s, 'break');
           return 'You crash through the brush. Something cracks.';
         } },
@@ -298,10 +308,10 @@ export const EVENTS: GameEvent[] = [
     weight: (s) => (s.supplies.shot >= 5 ? 2 : 0),
     text: () => 'A buck steps out to drink at the creek, not fifty yards off.',
     choices: [
-      { label: 'Take the shot (5 rounds)', ok: (s) => s.supplies.shot >= 5,
-        apply: (s) => {
+      { label: 'Take the shot (5 rounds)', ok: (s) => s.supplies.shot >= 5, skill: { verb: 'Steady your aim', odds: deerOdds },
+        apply: (s, _, __, won) => {
           s.supplies.shot -= 5;
-          if (rand(s) < Math.min(0.95, (s.role === 'ranger' ? 0.85 : 0.5) + (s.owned.includes('rifle') ? 0.3 : 0))) { s.supplies.food += 50; return 'A clean shot. 50 lb of venison.'; }
+          if (succeeds(s, deerOdds(s), won)) { s.supplies.food += 50; return 'A clean shot. 50 lb of venison.'; }
           return 'You miss, and the buck crashes away.';
         } },
       ok('Let it go'),
@@ -348,10 +358,10 @@ export const EVENTS: GameEvent[] = [
     weight: () => 1.5,
     text: () => "A settler family's wagon sits in the road with a cracked axle. The children watch you hopefully.",
     choices: [
-      { label: 'Stop and help (a day)',
-        apply: (s) => {
+      { label: 'Stop and help (a day)', skill: { verb: 'Lever the axle', odds: helpOdds },
+        apply: (s, _, __, won) => {
           advanceDay(s, false);
-          if (rand(s) < (s.role === 'farmer' ? 0.9 : 0.5)) { s.supplies.food += 40; s.morale = clamp(s.morale + 10); changeRep(s, 'settlers', 1); return 'You get them rolling. They insist you take 40 lb of corn and bacon.'; }
+          if (succeeds(s, helpOdds(s), won)) { s.supplies.food += 40; s.morale = clamp(s.morale + 10); changeRep(s, 'settlers', 1); return 'You get them rolling. They insist you take 40 lb of corn and bacon.'; }
           s.morale = clamp(s.morale - 5);
           return 'Despite a day of work, the axle cannot be saved.';
         } },
@@ -440,16 +450,18 @@ export function currentEvent(s: GameState) {
   const who = s.party[p.target];
   return {
     text: e.text(s, who, p),
-    choices: e.choices.map((c) => ({ label: typeof c.label === 'string' ? c.label : c.label(s), ok: !c.ok || c.ok(s) })),
+    choices: e.choices.map((c) => ({ label: typeof c.label === 'string' ? c.label : c.label(s), ok: !c.ok || c.ok(s),
+      skill: c.skill && { verb: c.skill.verb, odds: c.skill.odds(s) } })),
   };
 }
 
-export function resolveEvent(s: GameState, i: number) {
+/** `won` is a timing meter's result for a skill choice; leave it out to roll the odds. */
+export function resolveEvent(s: GameState, i: number, won?: boolean) {
   const p = s.pending!;
   const c = byId(p.id).choices[i];
   if (!c || (c.ok && !c.ok(s))) return;
   s.pending = undefined;
   s.phase = 'travel';
-  note(s, c.apply(s, p, s.party[p.target]));
+  note(s, c.apply(s, p, s.party[p.target], c.skill ? won : undefined));
   checkEnd(s);
 }
