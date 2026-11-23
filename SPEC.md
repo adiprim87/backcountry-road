@@ -112,6 +112,7 @@ Most events offer a choice with a trade-off, for example "use medicine or press 
   - Ferry: costs £, low risk.
   - Wait a day: the water may fall.
 - A failed crossing can lose supplies, damage the wagon or injure someone.
+- Each crossing plays a short animation of the wagon fording, floating or riding the ferry. A mishap shows the wagon swept downstream with a splash and a crate floating off. The result appears only after the animation; a tap, Enter or Space skips it.
 
 ## Hunting
 - A 30-second Phaser scene with deer, turkey, rabbits and wild boar moving through the pines.
@@ -165,6 +166,9 @@ Most events offer a choice with a trade-off, for example "use medicine or press 
 ## Tone & history
 - The look is a green-on-black terminal ledger with monospace type and light scanlines.
 - The map and both mini-games use small pixel sprites (wagon, towns, fort, pines, game animals, angler, float, fish). They're written as text grids in `src/scenes/art.ts` and turned into textures when the game loads, so there are no image files.
+- Every event has a small pixel picture above its text, drawn from the same art.
+- The map shows the day's weather: sun, heat haze, fog, rain, or a storm with occasional soft lightning. Motion effects are skipped for players who ask their system for reduced motion.
+- Pixels stay sharp when the browser enlarges the canvas (high-density phones). When it shrinks the canvas, smoothing keeps the small map labels readable.
 - Cherokee and Catawba people appear as traders, guides and bearers of news. There are no raids or caricatures.
 - Charleston's opening text acknowledges that the colony's wealth rested on enslaved labor. Slavery is never turned into a game mechanic.
 - Names, dates and distances are approximate, and a notes line in the game says so.

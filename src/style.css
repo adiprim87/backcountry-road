@@ -82,3 +82,4 @@ td button::before { content: ''; }
 .journal ul { margin: 0; padding-left: 0; list-style: none; }
 .journal li::before { content: '- '; color: var(--dim); }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.pic { display: block; margin: 12px 0 0; image-rendering: pixelated; }

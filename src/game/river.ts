@@ -23,14 +23,18 @@ export function canCross(s: GameState, m: Method) {
   return true;
 }
 
-export function cross(s: GameState, m: Method) {
+/** Returns true for a safe crossing, false for a mishap, undefined if this way across isn't possible. */
+export function cross(s: GameState, m: Method): boolean | undefined {
   if (!canCross(s, m)) return;
   const river = ROUTE[s.at];
   const d = depth(s);
   if (m === 'float') s.supplies.riverGear--;
   if (m === 'ferry') s.supplies.money -= river.ferry!;
   s.phase = 'travel';
-  if (rand(s) >= crossRisk(s, m)) return note(s, `You cross the ${river.name} safely.`);
+  if (rand(s) >= crossRisk(s, m)) {
+    note(s, `You cross the ${river.name} safely.`);
+    return true;
+  }
 
   const lost = Math.round(s.supplies.food * (0.2 + rand(s) * 0.3));
   s.supplies.food -= lost;
@@ -51,6 +55,7 @@ export function cross(s: GameState, m: Method) {
   }
   note(s, msg);
   checkEnd(s);
+  return false;
 }
 
 export function waitRiver(s: GameState) {

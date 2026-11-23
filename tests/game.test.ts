@@ -432,6 +432,21 @@ describe('reckoning problems at landmarks', () => {
 
 import { canFish, finishFish } from '../src/game/river';
 
+describe('crossing outcome', () => {
+  it('cross reports safe, mishap, or not possible', () => {
+    const results = new Set<boolean | undefined>();
+    for (let seed = 1; seed <= 40; seed++) {
+      const s = newGame('merchant', NAMES, seed);
+      s.at = 4; s.miles = 120; s.phase = 'river'; s.rain = 6; s.supplies.food = 100;
+      results.add(cross(s, 'ford'));
+    }
+    expect(results).toEqual(new Set([true, false]));
+    const broke = newGame('merchant', NAMES, 1);
+    broke.at = 4; broke.supplies.money = 0;
+    expect(cross(broke, 'ferry')).toBeUndefined();
+  });
+});
+
 describe('fishing', () => {
   it('is free, spends no day, and works once per river', () => {
     const s = newGame('merchant', NAMES, 1);
@@ -512,7 +527,8 @@ describe('daily challenge and endings', () => {
   });
 });
 
-import { ART, PALETTE } from '../src/scenes/art';
+import { ART, EVENT_PIC, PALETTE } from '../src/scenes/art';
+import { EVENTS } from '../src/game/events';
 
 describe('pixel art', () => {
   it('every sprite is a clean rectangle using only palette colors', () => {
@@ -523,5 +539,9 @@ describe('pixel art', () => {
         for (const ch of row) expect(ch === '.' || ch in pal, `${key}: '${ch}'`).toBe(true);
       }
     }
+  });
+
+  it('every event has a picture that exists', () => {
+    for (const e of EVENTS) expect(ART[EVENT_PIC[e.id]], e.id).toBeDefined();
   });
 });

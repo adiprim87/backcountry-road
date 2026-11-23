@@ -9,6 +9,7 @@ import { loadScores, recordScore, type ScoreEntry } from '../game/scores';
 import { isMuted, sfx, toggleMute } from '../sound';
 import { answerQuiz, QUIZ_REWARD } from '../game/quiz';
 import { epilogue } from '../game/ending';
+import { ART, EVENT_PIC, PALETTE } from '../scenes/art';
 
 const DEFAULT_NAMES = ['Thomas', 'Mary', 'Johann', 'Sarah', 'Elias'];
 
@@ -20,6 +21,7 @@ let scenesLoaded = false;
 let recorded: { run: GameState; entry: ScoreEntry; list: ScoreEntry[] } | null = null;
 let last = { run: null as GameState | null, phase: '', dead: 0 };
 let journalOpen = false;
+let crossing = ''; // river name while the crossing animation plays; the result waits until it ends
 let shared = ''; // feedback after the Share button
 let announcer: HTMLElement; // lives outside #ui, so screen readers hear it even though #ui is redrawn
 let heard = { run: null as GameState | null, lines: 0, event: '' };
@@ -124,9 +126,29 @@ function travel(g: GameState) {
 
 const log = (g: GameState) => `<ol class="log">${g.log.map((l) => `<li>${esc(l)}</li>`).join('')}</ol>`;
 
+const pics = new Map<string, string>();
+
+/** The art drawn at one pixel per cell; CSS scales it up with sharp edges. */
+function pic(key: string) {
+  const a = ART[key];
+  if (!a) return '';
+  if (!pics.has(key)) {
+    const pal = { ...PALETTE, ...a.pal };
+    const c = Object.assign(document.createElement('canvas'), { width: a.rows[0].length, height: a.rows.length });
+    const ctx = c.getContext('2d');
+    if (!ctx) return '';
+    a.rows.forEach((row, y) => [...row].forEach((ch, x) => {
+      if (ch !== '.') { ctx.fillStyle = pal[ch]; ctx.fillRect(x, y, 1, 1); }
+    }));
+    pics.set(key, c.toDataURL());
+  }
+  const scale = Math.min(6, Math.floor(96 / a.rows[0].length)); // about 96px wide at most
+  return `<img class="pic" src="${pics.get(key)}" alt="" width="${a.rows[0].length * scale}" height="${a.rows.length * scale}">`;
+}
+
 function event(g: GameState) {
   const e = currentEvent(g);
-  return `<h2>${dateText(g.day)}</h2><p class="event">${esc(e.text)}</p>
+  return `<h2>${dateText(g.day)}</h2>${pic(EVENT_PIC[g.pending!.id] ?? '')}<p class="event">${esc(e.text)}</p>
   ${e.choices.map((c, i) => btn('choose', esc(c.label), String(i), !c.ok)).join(' ')}
   ${log(g)}`;
 }
@@ -235,14 +257,15 @@ function announce() {
 
 function render() {
   if (s?.phase === 'end') recordEnd(s);
-  playSounds();
+  if (!crossing) playSounds();
   if (!s) root.innerHTML = view === 'title' ? title() : outfit();
+  else if (crossing) root.innerHTML = `<h2>${crossing}</h2><p>You start across…</p>`;
   else if (journalOpen) root.innerHTML = journal(s);
   else root.innerHTML = { store, travel, landmark, end, event, river, hunt, fish }[s.phase](s);
   if (s?.phase === 'end') clearSave();
   else if (s && s.phase !== 'hunt' && s.phase !== 'fish') save(s);
   syncCanvas();
-  announce();
+  if (!crossing) announce();
   root.querySelector<HTMLElement>('button:not([disabled]), input')?.focus({ preventScroll: true });
 }
 
@@ -251,9 +274,10 @@ function syncCanvas() {
   if (!s && !scenesLoaded) return;
   import('../scenes').then((m) => {
     scenesLoaded = true;
+    if (crossing) return; // the crossing scene owns the canvas until it finishes
     // Decide from the state at load time, not when the import was requested.
     if (!s || s.phase === 'store' || s.phase === 'end') m.hideCanvas();
-    else if (s.phase !== 'hunt' && s.phase !== 'fish') m.showMap(s.miles);
+    else if (s.phase !== 'hunt' && s.phase !== 'fish') m.showMap(s.miles, s.weather);
   });
 }
 
@@ -284,7 +308,17 @@ function act(name: string, arg: string) {
     else if (name === 'day') advanceDay(s);
     else if (name === 'treat') treatSick(s);
     else if (name === 'choose') resolveEvent(s, Number(arg));
-    else if (name === 'cross') cross(s, arg as Method);
+    else if (name === 'cross') {
+      const river = ROUTE[s.at].name, method = arg as Method;
+      const safe = cross(s, method);
+      if (safe !== undefined) {
+        crossing = river;
+        import('../scenes').then((m) => m.startCrossing({ method, safe, river }, () => {
+          crossing = '';
+          render();
+        }));
+      }
+    }
     else if (name === 'wait') waitRiver(s);
     else if (name === 'fish' && canFish(s)) {
       const g = s;

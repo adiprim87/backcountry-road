@@ -3,6 +3,9 @@ import Phaser from 'phaser';
 const FONT = '"Courier New", Courier, monospace';
 import { ROUTE } from '../game/route';
 import { makeTextures } from './sprites';
+import type { Weather } from '../game/state';
+
+const calm = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 // Hand-placed positions on an 800x200 sketch of the colony, coast at bottom right.
 const PTS: [number, number][] = [
@@ -34,10 +37,12 @@ export class MapScene extends Phaser.Scene {
   private miles = 0;
   private trail!: Phaser.GameObjects.Graphics;
   private wagon!: Phaser.GameObjects.Image;
+  private weather: Weather = 'fair';
+  private fx: Phaser.GameObjects.GameObject[] = []; // weather effects, replaced when the weather changes
 
   constructor() { super('map'); }
 
-  init(d: { miles: number }) { this.miles = d.miles; }
+  init(d: { miles: number; weather: Weather }) { Object.assign(this, { miles: d.miles, weather: d.weather, fx: [] }); }
 
   create() {
     makeTextures(this);
@@ -67,6 +72,45 @@ export class MapScene extends Phaser.Scene {
     this.trail = this.add.graphics();
     this.wagon = this.add.image(0, 0, 'wagon0').setFlipX(true).setOrigin(0.5, 0.9); // art faces right; the road runs west
     this.draw(this.miles);
+    this.drawWeather();
+  }
+
+  setWeather(w: Weather) {
+    if (w === this.weather) return;
+    this.weather = w;
+    this.drawWeather();
+  }
+
+  private drawWeather() {
+    this.fx.forEach((o) => o.destroy());
+    this.fx = [];
+    this.time.removeAllEvents(); // only the lightning uses timers here
+    const w = this.weather, top = 50;
+    if (w === 'fair' || w === 'hot') this.fx.push(this.add.image(560, 26, 'sun').setDepth(top));
+    if (w === 'hot') this.fx.push(this.add.rectangle(400, 100, 800, 200, 0xd9822b).setAlpha(0.1).setDepth(top));
+    if (w === 'fog') {
+      const fog = this.add.rectangle(400, 100, 800, 200, 0xb8c0b8).setAlpha(0.2).setDepth(top);
+      if (!calm()) this.tweens.add({ targets: fog, alpha: 0.32, duration: 2500, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+      this.fx.push(fog);
+    }
+    if (w === 'rain' || w === 'storm') {
+      this.fx.push(this.add.rectangle(400, 100, 800, 200, 0x0b1a2a).setAlpha(w === 'storm' ? 0.35 : 0.2).setDepth(top));
+      if (!calm()) this.fx.push(this.add.particles(0, -6, 'drop', {
+        x: { min: 0, max: 860 }, speedY: { min: 260, max: 340 }, speedX: -60, lifespan: 750, alpha: { start: 0.8, end: 0.3 },
+        frequency: w === 'storm' ? 8 : 22, quantity: w === 'storm' ? 3 : 1,
+      }).setDepth(top));
+    }
+    // Lightning: a soft, brief brightening now and then (not a strobe; skipped for reduced motion).
+    if (w === 'storm' && !calm()) {
+      const flash = this.add.rectangle(400, 100, 800, 200, 0xdde8ff).setAlpha(0).setDepth(top);
+      this.fx.push(flash);
+      const strike = () => {
+        flash.setAlpha(0.3);
+        this.tweens.add({ targets: flash, alpha: 0, duration: 350 });
+        this.time.delayedCall(Phaser.Math.Between(3000, 6000), strike);
+      };
+      this.time.delayedCall(1500, strike);
+    }
   }
 
   setMiles(m: number) {

@@ -18,6 +18,7 @@ export const PALETTE: Record<string, string> = {
   f: '#f0e8d8', // tail
   c: '#a89878', // rabbit
   s: '#b8b8b8', // silver
+  L: '#c8e0f0', // rain, splash
 };
 
 export interface Art { rows: string[]; px: number; pal?: Record<string, string> }
@@ -164,4 +165,61 @@ export const ART: Record<string, Art> = {
   shad: { px: 4, rows: fish, pal: { g: '#b8c8d0', y: '#8898a8' } },
   catfish: { px: 5, rows: fish, pal: { g: '#5a5a4a', y: '#3a3a30' } },
   sturgeon: { px: 8, rows: fish, pal: { g: '#7a6a5a', y: '#5a4a3a' } },
+  // River crossing
+  drop: { px: 2, rows: ['L', 'L', 'L'] },
+  crate: { px: 4, rows: ['kkkkk', 'kbdbk', 'kdbdk', 'kbdbk', 'kkkkk'] },
+  raft: { px: 6, rows: ['bdbdbdbdbdbdbdbdbdbdbdbd', 'dddddddddddddddddddddddd', '.k...k...k...k...k...k..'] },
+  // Map weather and event pictures
+  sun: { px: 3, rows: ['....y....', '.y.....y.', '...yyy...', '..yyyyy..', 'y.yyyyy.y', '..yyyyy..', '...yyy...', '.y.....y.', '....y....'] },
+  moon: { px: 3, rows: ['..WWW..', '.WWW...', 'WWW....', 'WWW....', 'WWW....', '.WWW...', '..WWW..'] },
+  cloud: { px: 3, pal: { s: '#8a8a9a' }, rows: [
+    '....sss.....',
+    '..sssssss...',
+    '.sssssssss..',
+    'ssssssssssss',
+    '.ssssssssss.',
+    '.....yy.....',
+    '....yy......',
+    '.....yy.....',
+    '......y.....',
+  ] },
+  snake: { px: 3, pal: { g: '#7a8a3a' }, rows: ['.........gg.', '........gkgr', '..gg....gg..', '.g..g..g....', 'g....gg.....'] },
+  wheel: { px: 3, rows: ['..kkkkk..', '.kb.b.bk.', 'kb..b..bk', 'k.b.b.b.k', 'kbbbdbbbk', 'k.b.b.b.k', 'kb..b..bk', '.kb.b.bk.', '..kkkkk..'] },
+  horse: { px: 3, rows: [
+    '..........oo..',
+    '.........ooko.',
+    '..wwww...oooo.',
+    '.wwwwww.ooo...',
+    '.oooooooooo...',
+    'oooooooooo....',
+    'd.oooooooo....',
+    '..o.o...o.o...',
+    '..o.o...o.o...',
+    '..k.k...k.k...',
+  ] },
+  wolf: { px: 3, pal: { s: '#8a8a8a' }, rows: [
+    '..........s.s.',
+    '..........sss.',
+    '.........sssks',
+    's.ssssssssssss',
+    '.ssssssssss...',
+    '..ssssssss....',
+    '..s.s...s.s...',
+    '..k.k...k.k...',
+  ] },
+  bottle: { px: 3, rows: ['..kk..', '..tt..', '..ww..', '.wwww.', 'wnnnnw', 'wnWWnw', 'wnnnnw', 'wnnnnw', '.wwww.'] },
+  berries: { px: 3, rows: ['..g.g.g..', '.ggrgggg.', 'grggggrgg', 'ggggrgggg', 'grgggggrg', '.gggrggg.', '..ggggg..'] },
+  fire: { px: 3, rows: ['....r....', '...ryr...', '..ryyr...', '..ryyyr..', '.ryyWyyr.', '..ryyyr..', 'dbdbdbdbd', '.d.b.d.b.'] },
+  mosquito: { px: 3, rows: ['.W.....W.', '..W...W..', '...WhW...', 'hhhhhhhk.', '..h.h.h..', '.h..h..h.'] },
+  barrel: { px: 3, rows: ['.dddddd.', 'dbbbbbbd', 'kkkkkkkk', 'dbbbbbbd', 'dbbbbbbd', 'dbbbbbbd', 'kkkkkkkk', 'dbbbbbbd', '.dddddd.'] },
+  rifle: { px: 3, rows: ['k...............', 'bbbbbkkkkkkkkkkk', 'bbbbbbd.........', '.bbb..k.........'] },
+  scroll: { px: 3, rows: ['dwwwwwwwwd', '.wwwwwwww.', '.wkkkkkkw.', '.wwwwwwww.', '.wkkkkkww.', '.wwwwwwww.', '.wwwwwrrw.', 'dwwwwwwrwd'] },
+};
+
+// A small picture for each event, from the same pixel art the canvas scenes use.
+export const EVENT_PIC: Record<string, string> = {
+  fever: 'bottle', sickTraveler: 'bottle', snakebite: 'snake', heat: 'sun', mosquitoes: 'mosquito', break: 'wheel', storm: 'cloud',
+  lost: 'pine', guide: 'pine', scout: 'pine', spoiled: 'barrel', factor: 'barrel', peddler: 'horse', catawba: 'horse',
+  cherokeeTrade: 'horse', militia: 'horse', horses: 'horse', homestead: 'house', cabin: 'house', harvest: 'house',
+  berries: 'berries', camp: 'fire', nightMarch: 'moon', deer: 'deer0', wolves: 'wolf', settlerWagon: 'wagon0', rifle: 'rifle', deed: 'scroll',
 };
