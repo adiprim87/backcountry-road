@@ -167,6 +167,7 @@ Most events offer a choice with a trade-off, for example "use medicine or press 
 - The look is a green-on-black terminal ledger with monospace type and light scanlines.
 - The map and both mini-games use small pixel sprites (wagon, towns, fort, pines, game animals, angler, float, fish). They're written as text grids in `src/scenes/art.ts` and turned into textures when the game loads, so there are no image files.
 - Every event has a small pixel picture above its text, drawn from the same art.
+- Resting a day on the road, or waiting a day at a river, plays a short camp scene. Dusk turns to a starry night and then dawn. The living party sits around a fire by the parked wagon, each with their name, shifting a little and now and then eating. Sick or injured members lie under a blanket. The day's news appears after the scene; a tap, Enter or Space skips it.
 - The map shows the day's weather: sun, heat haze, fog, rain, or a storm with occasional soft lightning. Motion effects are skipped for players who ask their system for reduced motion.
 - Pixels stay sharp when the browser enlarges the canvas (high-density phones). When it shrinks the canvas, smoothing keeps the small map labels readable.
 - Cherokee and Catawba people appear as traders, guides and bearers of news. There are no raids or caricatures.

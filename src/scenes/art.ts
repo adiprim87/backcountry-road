@@ -84,6 +84,19 @@ const fish = [
   'y...ggg...',
 ];
 
+// A seated traveler facing right. Frame 1 lifts a hand to eat. One coat color per party member.
+const sitterTop = ['..ddd....', '.ddddd...', '..ttk....', '..ttt....'];
+const sitterLegs = ['.nnnnbb..', '.nnnnbbb.', '..kk..kk.'];
+export const COATS = ['#2a4a7a', '#8a2a2a', '#3a6a3a', '#6a4a2a', '#5a5a6a'];
+function sitters(): Record<string, Art> {
+  const out: Record<string, Art> = {};
+  COATS.forEach((n, i) => {
+    out[`sit${i}a`] = { px: 4, pal: { n }, rows: [...sitterTop, '.nnnn....', 'nnnnnt...', 'nnnnn....', ...sitterLegs] };
+    out[`sit${i}b`] = { px: 4, pal: { n }, rows: [...sitterTop, '.nnnnt...', 'nnnnn....', 'nnnnn....', ...sitterLegs] };
+  });
+  return out;
+}
+
 export const ART: Record<string, Art> = {
   // Map
   wagon0: { px: 2, rows: wagon('kdtdk') },
@@ -165,6 +178,10 @@ export const ART: Record<string, Art> = {
   shad: { px: 4, rows: fish, pal: { g: '#b8c8d0', y: '#8898a8' } },
   catfish: { px: 5, rows: fish, pal: { g: '#5a5a4a', y: '#3a3a30' } },
   sturgeon: { px: 8, rows: fish, pal: { g: '#7a6a5a', y: '#5a4a3a' } },
+  // Camp
+  fire1: { px: 3, rows: ['...r.....', '...ryr...', '...ryyr..', '..ryyyr..', '.ryyWyyr.', '..ryyyr..', 'dbdbdbdbd', '.d.b.d.b.'] },
+  sleeper: { px: 4, pal: { s: '#7a5a3a' }, rows: ['.tt...........', 'tttWWsssssss..', 'tttWsssssssss.', '..ssssssssssss'] },
+  ...sitters(),
   // River crossing
   drop: { px: 2, rows: ['L', 'L', 'L'] },
   crate: { px: 4, rows: ['kkkkk', 'kbdbk', 'kdbdk', 'kbdbk', 'kkkkk'] },

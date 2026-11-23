@@ -21,7 +21,17 @@ let scenesLoaded = false;
 let recorded: { run: GameState; entry: ScoreEntry; list: ScoreEntry[] } | null = null;
 let last = { run: null as GameState | null, phase: '', dead: 0 };
 let journalOpen = false;
-let crossing = ''; // river name while the crossing animation plays; the result waits until it ends
+// While a short scene plays (river crossing, a day in camp), the page shows this and the day's results wait until it ends.
+let cutscene: { title: string; text: string } | null = null;
+
+/** Play a canvas scene, then show what happened. `start` gets the scenes module and the callback to run when it ends. */
+function playScene(title: string, text: string, start: (m: typeof import('../scenes'), done: () => void) => void) {
+  cutscene = { title, text };
+  import('../scenes').then((m) => start(m, () => {
+    cutscene = null;
+    render();
+  }));
+}
 let shared = ''; // feedback after the Share button
 let announcer: HTMLElement; // lives outside #ui, so screen readers hear it even though #ui is redrawn
 let heard = { run: null as GameState | null, lines: 0, event: '' };
@@ -257,15 +267,15 @@ function announce() {
 
 function render() {
   if (s?.phase === 'end') recordEnd(s);
-  if (!crossing) playSounds();
+  if (!cutscene) playSounds();
   if (!s) root.innerHTML = view === 'title' ? title() : outfit();
-  else if (crossing) root.innerHTML = `<h2>${crossing}</h2><p>You start across…</p>`;
+  else if (cutscene) root.innerHTML = `<h2>${esc(cutscene.title)}</h2><p>${esc(cutscene.text)}</p>`;
   else if (journalOpen) root.innerHTML = journal(s);
   else root.innerHTML = { store, travel, landmark, end, event, river, hunt, fish }[s.phase](s);
   if (s?.phase === 'end') clearSave();
   else if (s && s.phase !== 'hunt' && s.phase !== 'fish') save(s);
   syncCanvas();
-  if (!crossing) announce();
+  if (!cutscene) announce();
   root.querySelector<HTMLElement>('button:not([disabled]), input')?.focus({ preventScroll: true });
 }
 
@@ -274,7 +284,7 @@ function syncCanvas() {
   if (!s && !scenesLoaded) return;
   import('../scenes').then((m) => {
     scenesLoaded = true;
-    if (crossing) return; // the crossing scene owns the canvas until it finishes
+    if (cutscene) return; // the scene owns the canvas until it finishes
     // Decide from the state at load time, not when the import was requested.
     if (!s || s.phase === 'store' || s.phase === 'end') m.hideCanvas();
     else if (s.phase !== 'hunt' && s.phase !== 'fish') m.showMap(s.miles, s.weather);
@@ -294,6 +304,11 @@ async function share(g: GameState) {
   render();
 }
 
+/** Who sits by the fire, taken before the day passes so the scene doesn't give away what happens. */
+const campOpts = (g: GameState, title: string) => ({
+  title, river: g.phase === 'river', members: alive(g).map((m) => ({ name: m.name, resting: m.status !== 'well' })),
+});
+
 function act(name: string, arg: string) {
   if (name === 'outfit') view = 'outfit';
   else if (name === 'continue') s = load();
@@ -305,21 +320,24 @@ function act(name: string, arg: string) {
     if (name === 'buy') { const [k, n] = arg.split(':'); buy(s, k as ItemKey, Number(n)); }
     else if (name === 'store') s.phase = 'store';
     else if (name === 'travel') s.phase = 'travel';
+    else if (name === 'day' && s.pace === 'rest') {
+      const opts = campOpts(s, 'Resting a day');
+      advanceDay(s);
+      playScene('Camp', 'The party rests by the fire…', (m, done) => m.startCamp(opts, done));
+    }
     else if (name === 'day') advanceDay(s);
     else if (name === 'treat') treatSick(s);
     else if (name === 'choose') resolveEvent(s, Number(arg));
     else if (name === 'cross') {
       const river = ROUTE[s.at].name, method = arg as Method;
       const safe = cross(s, method);
-      if (safe !== undefined) {
-        crossing = river;
-        import('../scenes').then((m) => m.startCrossing({ method, safe, river }, () => {
-          crossing = '';
-          render();
-        }));
-      }
+      if (safe !== undefined) playScene(river, 'You start across…', (m, done) => m.startCrossing({ method, safe, river }, done));
     }
-    else if (name === 'wait') waitRiver(s);
+    else if (name === 'wait') {
+      const opts = campOpts(s, `Waiting at the ${ROUTE[s.at].name}`);
+      waitRiver(s);
+      playScene(ROUTE[s.at].name, 'You make camp by the water…', (m, done) => m.startCamp(opts, done));
+    }
     else if (name === 'fish' && canFish(s)) {
       const g = s;
       g.phase = 'fish';
